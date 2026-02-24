@@ -63,9 +63,9 @@ export function UserNav() {
           <div className="flex items-center gap-2 text-xl cursor-pointer">
             <Link href="/">
               <div className="flex items-center gap-2 font-extrabold">
-                <div className="relative h-10 w-[120px] flex">
+                <div className="relative h-12 w-12 flex">
                   <Image
-                    src="/logo.jpeg"
+                    src="/logo.webp"
                     alt="Paysm Logo"
                     fill
                     className="object-contain object-left"
@@ -74,7 +74,7 @@ export function UserNav() {
                   />
                 </div>
                 {/* 로고 옆에 소속 이름 표시 */}
-                <div className="text-lg md:text-xl text-slate-700">
+                <div className="text-xl md:text-3xl text-slate-700">
                   {orgName}
                 </div>
               </div>

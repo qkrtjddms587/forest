@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function BootstrapPage() {
+function BootstrapLogic() {
   const sp = useSearchParams();
   const router = useRouter();
 
@@ -23,4 +23,12 @@ export default function BootstrapPage() {
   }, [sp, router]);
 
   return <div style={{ padding: 24 }}>로그인 처리 중...</div>;
+}
+
+export default function BootstrapPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>로딩 중...</div>}>
+      <BootstrapLogic />
+    </Suspense>
+  );
 }

@@ -4,8 +4,7 @@ import { JoinOrgDrawer } from "@/components/user/join-org-drawer";
 import Link from "next/link";
 import { redirect } from "next/navigation"; // 👈 리다이렉트 함수 임포트
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Plus, Building2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { ChevronRight, Building2 } from "lucide-react";
 
 export default async function LobbyPage() {
   const session = await auth();
@@ -16,13 +15,16 @@ export default async function LobbyPage() {
     where: {
       memberId: Number(session.user.id),
       status: "ACTIVE", // 승인 대기중인 건 제외하고, 진짜 들어갈 수 있는 것만 체크
+      organization: {
+        deletedAt: null,
+      },
     },
     include: { organization: true, generation: true, Position: true },
   });
 
   // 🚀 핵심 로직: 소속이 딱 하나라면 바로 입장!
   if (myAffiliations.length === 1) {
-    redirect(`/org/${myAffiliations[0].id}`);
+    redirect(`/org/${myAffiliations[0].organizationId}`);
   }
 
   // ----------------------------------------------------------------

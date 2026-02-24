@@ -9,7 +9,6 @@ import {
   FileText,
   Bell,
   ChevronRight,
-  ArrowLeft,
   Megaphone,
   Calendar,
 } from "lucide-react";

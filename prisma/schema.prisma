@@ -66,18 +66,19 @@ model Member {
 
 // 4. 가입 정보 (중간 테이블)
 model Affiliation {
-  id                  Int             @id @default(autoincrement())
+  id                  Int          @id @default(autoincrement())
   memberId            Int
-  member              Member          @relation(fields: [memberId], references: [id])
+  member              Member       @relation(fields: [memberId], references: [id])
   organizationId      Int
-  organization        Organization    @relation(fields: [organizationId], references: [id])
+  organization        Organization @relation(fields: [organizationId], references: [id])
   generationId        Int
-  generation          Generation      @relation(fields: [generationId], references: [id])
-  role                String          @default("USER") // ADMIN,MANAGER,USER
-  status              String          @default("ACTIVE")
+  generation          Generation   @relation(fields: [generationId], references: [id])
+  role                String       @default("USER") // ADMIN,MANAGER,USER
+  status              String       @default("ACTIVE")
   membershipExpiresAt DateTime?
-  fees                MembershipFee[]
+  isPrimary           Boolean      @default(false)
 
+  fees     MembershipFee[]
   greeting Greeting?
 
   createdAt  DateTime  @default(now())
