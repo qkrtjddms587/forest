@@ -59,10 +59,10 @@ export default async function UserGreetingPage({
         <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
           인사말
         </h1>
-        <p className="text-slate-500 font-medium">
+        {/* <p className="text-slate-500 font-medium">
           {generations.find((g) => g.id === currentGenId)?.name} 임원진을
           소개합니다.
-        </p>
+        </p> */}
       </div>
 
       {/* 인사말 카드 리스트 */}
