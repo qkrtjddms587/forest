@@ -3,16 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateGenForm, CreateOrgForm, DeleteButton } from "./form";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { MessageSquareText } from "lucide-react";
-import { GreetingForm } from "@/components/admin/greeting-form";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { GenerationItem } from "./generation-item";
 // 👇 방금 만든 폼 컴포넌트들을 가져옵니다
 
 export default async function AdminOrgsPage() {
@@ -57,24 +51,29 @@ export default async function AdminOrgsPage() {
 
       <div className="grid md:grid-cols-2 gap-4">
         {organizations.map((org) => (
-          <Card key={org.id}>
-            <CardHeader className="bg-slate-50 border-b pb-3">
+          <Card
+            key={org.id}
+            className="flex flex-col hover:ring-2 ring-brand-main transition-colors"
+          >
+            <CardHeader className="bg-slate-50 border-b pb-3 flex flex-row justify-between items-center">
               <CardTitle className="text-lg">{org.name}</CardTitle>
-              <DeleteButton id={org.id} type="org" />
+              <div className="flex gap-2">
+                {/* 🌟 바로 조직도 관리로 넘어가는 단축키 버튼 */}
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/admin/org-chart/${org.id}`}>
+                    조직도 관리 <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </Button>
+                <DeleteButton id={org.id} type="org" />
+              </div>
             </CardHeader>
-            <CardContent className="pt-4 space-y-4">
+
+            <CardContent className="pt-4 flex-1 space-y-4">
               {/* 기수 리스트 */}
               <div className="flex flex-wrap gap-2 items-center">
                 {org.generations.length > 0 ? (
                   org.generations.map((gen) => (
-                    <div
-                      key={gen.id}
-                      className="flex items-center bg-white border rounded px-2 py-1 shadow-sm gap-2"
-                    >
-                      <span className="text-sm text-gray-600">{gen.name}</span>
-                      {/* 👇 기수 삭제 버튼 */}
-                      <DeleteButton id={gen.id} type="gen" />
-                    </div>
+                    <GenerationItem key={gen.id} orgId={org.id} gen={gen} />
                   ))
                 ) : (
                   <span className="text-sm text-gray-400">

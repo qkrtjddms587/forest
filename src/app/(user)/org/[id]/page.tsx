@@ -65,11 +65,11 @@ export default async function OrgHomePage({ params }: Props) {
       <div className="relative h-[280px] w-full bg-slate-900 text-white overflow-hidden">
         {/* 배경 이미지 (public/campus-bg.jpg 파일 필요, 없으면 색상만 나옴) */}
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-50 transition-transform hover:scale-105 duration-700"
-          style={{ backgroundImage: "url('/campus-bg.jpg')" }}
+          className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform hover:scale-105 duration-700"
+          style={{ backgroundImage: "url('/main_bg.webp')" }}
         />
         {/* 그라데이션 오버레이 */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black-20" />
 
         {/* 메인 텍스트 */}
         <div className="absolute bottom-20 z-10 px-6 pt-4">

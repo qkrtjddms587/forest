@@ -1,9 +1,9 @@
 import { auth } from "@/auth";
 import { getMembersAction } from "@/actions/member-actions";
 import { InfiniteMemberList } from "@/components/member/infinite-member-list";
-import { SearchInput } from "@/components/common/search-input";
-import { FilterSelect } from "@/components/common/filter-select"; // 👈 추가
+import { SearchInput } from "@/components/common/search-input"; // 👈 추가
 import { prisma } from "@/lib/prisma";
+import { FilterSelect } from "@/components/common/filter-select";
 
 interface Props {
   params: Promise<{ id: string }>;

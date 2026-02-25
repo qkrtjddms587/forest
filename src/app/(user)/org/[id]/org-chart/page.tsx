@@ -1,234 +1,168 @@
-"use client";
+import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, Award } from "lucide-react";
+interface Props {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ gen?: string }>;
+}
 
-// ----------------------------------------------------------------------
-// 1. 하드코딩 데이터 (나중에 DB에서 가져올 구조)
-// ----------------------------------------------------------------------
-const ORG_DATA = {
-  // 🥇 1. 최상위 리더 (회장)
-  leader: {
-    name: "김태우",
-    position: "제 15대 회장",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
-    phone: "010-1234-5678",
-    email: "president@org.com",
-    message: "소통과 화합으로 하나되는 모임을 만들겠습니다.",
-  },
+export default async function UserOrgChartPage({
+  params,
+  searchParams,
+}: Props) {
+  const { id } = await params;
+  const { gen } = await searchParams;
 
-  // 🥈 2. 고문 및 감사 (사이드 임원)
-  advisors: [
-    { name: "이영희", position: "고문", image: null },
-    {
-      name: "박철수",
-      position: "수석 감사",
-      image: "https://randomuser.me/api/portraits/men/44.jpg",
+  if (!id || isNaN(Number(id))) return notFound();
+
+  // 1. 조직 및 기수 로드
+  const generations = await prisma.generation.findMany({
+    where: { organizationId: Number(id), deletedAt: null },
+    orderBy: [{ isPrimary: "desc" }, { name: "desc" }],
+    include: { organization: true },
+  });
+
+  if (generations.length === 0) {
+    return (
+      <div className="p-10 text-center text-slate-500">
+        등록된 기수가 없습니다.
+      </div>
+    );
+  }
+
+  const currentGenId = gen ? Number(gen) : generations[0].id;
+  const currentGen =
+    generations.find((g) => g.id === currentGenId) || generations[0];
+
+  // 2. 직책(Position) 및 소속 회원 로드 (rank 오름차순)
+  const positionsWithMembers = await prisma.position.findMany({
+    where: { generationId: currentGenId },
+    orderBy: { rank: "asc" },
+    include: {
+      affiliations: {
+        where: { status: "ACTIVE" },
+        include: { member: true },
+        orderBy: { member: { name: "asc" } },
+      },
     },
-  ],
+  });
 
-  // 🥉 3. 실무 임원진 (부회장, 사무국장 등)
-  executives: [
-    { name: "최민수", position: "수석 부회장", phone: "010-1111-2222" },
-    { name: "정수진", position: "여성 부회장", phone: "010-3333-4444" },
-    {
-      name: "강동원",
-      position: "사무국장",
-      phone: "010-5555-6666",
-      highlight: true,
-    }, // 실무 책임자 강조
-  ],
+  // 🌟 3. rank(순위)를 기준으로 직책들을 그룹화합니다. (핵심 로직)
+  // 같은 rank를 가진 직책들끼리 같은 가로줄(Row)에 배치하기 위함입니다.
+  const rankGroups = positionsWithMembers.reduce((acc, pos) => {
+    if (pos.affiliations.length === 0) return acc; // 사람 없는 직책은 숨김
+    if (!acc[pos.rank]) acc[pos.rank] = [];
+    acc[pos.rank].push(pos);
+    return acc;
+  }, {} as Record<number, typeof positionsWithMembers>);
 
-  // 🍀 4. 각 부서장 (팀장급)
-  departments: [
-    { name: "기획부", head: "송중기", position: "기획부장" },
-    { name: "홍보부", head: "전지현", position: "홍보부장" },
-    { name: "재무부", head: "유재석", position: "재무부장" },
-    { name: "대외협력부", head: "김혜수", position: "협력부장" },
-    { name: "체육부", head: "손흥민", position: "체육부장" },
-  ],
-};
-
-// ----------------------------------------------------------------------
-// 2. 재사용 카드 컴포넌트
-// ----------------------------------------------------------------------
-function OrgCard({
-  member,
-  type = "normal",
-}: {
-  member: any;
-  type?: "leader" | "exec" | "normal";
-}) {
-  const isLeader = type === "leader";
+  const sortedRanks = Object.keys(rankGroups)
+    .map(Number)
+    .sort((a, b) => a - b);
 
   return (
-    <Card
-      className={`relative overflow-hidden transition-all hover:shadow-md border-slate-200 ${
-        isLeader ? "border-brand-main border-2 shadow-lg" : ""
-      } ${member.highlight ? "border-blue-300 bg-blue-50/50" : "bg-white"}`}
-    >
-      <CardContent
-        className={`flex flex-col items-center p-6 ${
-          isLeader ? "py-8" : "py-5"
-        }`}
-      >
-        {/* 직책 뱃지 */}
-        <Badge
-          className={`mb-3 ${
-            isLeader
-              ? "bg-brand-main text-white text-md px-3 py-1"
-              : member.highlight
-              ? "bg-blue-600"
-              : "bg-slate-700"
-          }`}
-        >
-          {member.position}
-        </Badge>
+    <div className="max-w-4xl mx-auto px-4 py-16 min-h-screen bg-white font-sans">
+      {/* 🌟 타이틀 영역 (이미지와 동일한 붉은 사각형 데코레이션) */}
+      <div className="flex flex-col items-center justify-center gap-2 mb-16 text-center">
+        <div className="flex items-center justify-center gap-3">
+          <div className="w-5 h-5 bg-brand-main -skew-x-12 shadow-sm" />
+          <h1 className="text-2xl md:text-3xl font-black text-[#152a4e] tracking-tight whitespace-pre-wrap">
+            {currentGen.organization.name} {currentGen.name}
+          </h1>
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black text-[#152a4e] tracking-widest mt-1">
+          조 직 도
+        </h2>
+      </div>
 
-        {/* 아바타 이미지 */}
-        <Avatar
-          className={`${
-            isLeader ? "w-24 h-24 border-4 border-white shadow-sm" : "w-16 h-16"
-          } mb-3`}
-        >
-          <AvatarImage src={member.image} />
-          <AvatarFallback className="bg-slate-100 text-slate-400 font-bold text-lg">
-            {member.name[0]}
-          </AvatarFallback>
-        </Avatar>
+      {/* 🌟 조직도 트리 영역 */}
+      <div className="flex flex-col items-center space-y-8">
+        {sortedRanks.map((rank, index) => {
+          const positionsInThisRank = rankGroups[rank];
+          const isPresidentRank = index === 0; // 가장 첫 번째 랭크(회장)는 빨간색
 
-        {/* 이름 & 정보 */}
-        <h3
-          className={`font-bold text-slate-900 ${
-            isLeader ? "text-xl" : "text-lg"
-          }`}
-        >
-          {member.name}
-        </h3>
-
-        {/* 리더 한마디 (리더일 경우만) */}
-        {isLeader && member.message && (
-          <p className="text-sm text-slate-500 mt-2 text-center break-keep max-w-[200px]">
-            "{member.message}"
-          </p>
-        )}
-
-        {/* 연락처 아이콘들 */}
-        {(member.phone || member.email) && (
-          <div className="flex gap-3 mt-4 text-slate-400">
-            {member.phone && (
-              <a
-                href={`tel:${member.phone}`}
-                className="hover:text-brand-main transition-colors"
-              >
-                <Phone className="w-4 h-4" />
-              </a>
-            )}
-            {member.email && (
-              <a
-                href={`mailto:${member.email}`}
-                className="hover:text-brand-main transition-colors"
-              >
-                <Mail className="w-4 h-4" />
-              </a>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          return (
+            // 랭크별 가로 줄 (1개면 중앙 정렬, 여러 개면 그리드 정렬)
+            <div
+              key={rank}
+              className={`w-full flex justify-center gap-4 md:gap-6 flex-wrap`}
+            >
+              {positionsInThisRank.map((position) => (
+                <OrgBox
+                  key={position.id}
+                  title={position.name}
+                  members={position.affiliations}
+                  isLeader={isPresidentRank}
+                  // 직책이 여러 개면 박스 크기를 제한해서 나란히 놓이게 함
+                  className={
+                    positionsInThisRank.length === 1
+                      ? "w-full max-w-[320px]"
+                      : "w-full max-w-[260px] flex-1"
+                  }
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
-// ----------------------------------------------------------------------
-// 3. 메인 페이지 컴포넌트
-// ----------------------------------------------------------------------
-export default function OrgChartPage() {
+// 🎨 이미지 스타일을 완벽 재현한 개별 조직도 박스 컴포넌트
+function OrgBox({
+  title,
+  members,
+  isLeader = false,
+  className = "",
+}: {
+  title: string;
+  members: any[];
+  isLeader?: boolean;
+  className?: string;
+}) {
+  // 박스 안의 인원 수에 따라 그리드 컬럼 조절 (2명이면 2칸, 3명이면 2칸(자동줄바꿈) 등)
+  const gridCols = members.length > 1 ? "grid-cols-2" : "grid-cols-1";
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* 헤더 섹션 */}
-      <div className="bg-white border-b px-6 py-8 text-center mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">조직도</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          우리 단체를 이끌어가는 임원진을 소개합니다.
-        </p>
+    <div
+      className={`rounded-xl overflow-hidden bg-white shadow-md border border-green-50/50 flex flex-col ${className}`}
+    >
+      {/* 박스 헤더 (빨강 or 네이비) */}
+      <div
+        className={`py-3 text-center ${
+          isLeader ? "bg-brand-main" : "bg-[#152a4e]"
+        }`}
+      >
+        <h3 className="text-xl font-black text-white tracking-widest">
+          {title}
+        </h3>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4">
-        {/* [Level 1] 회장 (Leader) */}
-        <div className="flex flex-col items-center">
-          <div className="w-full max-w-sm">
-            <OrgCard member={ORG_DATA.leader} type="leader" />
-          </div>
-
-          {/* 연결선 (Vertical Line) */}
-          <div className="h-10 w-px bg-slate-300 my-2"></div>
-        </div>
-
-        {/* [Level 2] 고문 및 감사 (Advisors) */}
-        <div className="relative mb-10">
-          {/* 수평 연결선 */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-px bg-slate-300 hidden md:block"></div>
-
-          <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto md:mt-6">
-            {ORG_DATA.advisors.map((advisor, idx) => (
-              <div key={idx} className="relative">
-                {/* 모바일용 작은 연결선 */}
-                <div className="absolute -top-4 left-1/2 w-px h-4 bg-slate-300 md:hidden"></div>
-                <OrgCard member={advisor} />
+      {/* 박스 바디 (멤버 리스트) */}
+      <div className="p-5 flex-1 flex items-center justify-center">
+        <div
+          className={`w-full grid ${gridCols} gap-y-6 gap-x-2 place-items-center`}
+        >
+          {members.map((aff) => (
+            <div
+              key={aff.id}
+              className="text-center flex flex-col items-center w-full"
+            >
+              <div className="flex items-baseline justify-center gap-1 w-full">
+                <span className="text-[17px] font-extrabold text-slate-900 tracking-wide">
+                  {aff.member.name}
+                </span>
+                {/* 만약 Affiliation이나 Position에 국장/차장 등 세부 직책(role) 정보가 있다면 여기에 노출 */}
+                {/* <span className="text-[11px] font-bold text-[#f58220]">{aff.role}</span> */}
               </div>
-            ))}
-          </div>
-
-          {/* 다음 레벨로 가는 연결선 */}
-          <div className="flex justify-center mt-4">
-            <div className="h-8 w-px bg-slate-300"></div>
-          </div>
-        </div>
-
-        {/* [Level 3] 실무 임원진 (Executives) */}
-        <div className="mb-12">
-          <div className="text-center mb-4">
-            <span className="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded-full font-bold">
-              집행부
-            </span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {ORG_DATA.executives.map((exec, idx) => (
-              <OrgCard key={idx} member={exec} type="exec" />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-10" />
-
-        {/* [Level 4] 부서 조직 (Departments) */}
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <Award className="w-5 h-5 text-brand-main" />
-            부서 및 위원회
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {ORG_DATA.departments.map((dept, idx) => (
-              <div
-                key={idx}
-                className="bg-white border rounded-lg p-4 flex flex-col items-center hover:border-brand-main transition-colors cursor-default"
-              >
-                <span className="text-sm font-bold text-brand-main mb-1">
-                  {dept.name}
+              {aff.member.phone && (
+                <span className="text-[11px] font-semibold text-slate-500 mt-0.5 tracking-wider">
+                  {aff.member.phone}
                 </span>
-                <span className="font-bold text-slate-900 text-lg">
-                  {dept.head}
-                </span>
-                <span className="text-xs text-slate-400 mt-1">
-                  {dept.position}
-                </span>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

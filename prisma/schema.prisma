@@ -19,7 +19,6 @@ model Organization {
 
   deletedAt DateTime?
   Post      Post[]
-  position  Position[]
 }
 
 // 2. 기수 (2뎁스)
@@ -30,8 +29,10 @@ model Generation {
   organization   Organization  @relation(fields: [organizationId], references: [id])
   affiliations   Affiliation[]
   createdAt      DateTime      @default(now())
+  isPrimary      Boolean       @default(false)
 
   deletedAt DateTime?
+  Position  Position[]
 
   @@unique([organizationId, name])
 }
@@ -157,11 +158,14 @@ model Greeting {
 
   // 누구의 인사말인가? (Affiliation을 통하면 Member, Org, Gen 정보를 한 번에 알 수 있음)
   affiliationId Int         @unique // 한 명의 회장은 하나의 기수에 하나의 인사말만 (필요시 unique 제거)
-  affiliation   Affiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+  affiliation   Affiliation @relation(fields: [affiliationId], references: [id])
 
-  title    String? // 인사말 제목 (예: "제 5대 회장 취임사")
-  content  String // 인사말 본문 (HTML/Text)
-  imageUrl String? // 인사말용 특별 사진 (기존 프로필과 다를 수 있음)
+  title        String? // 인사말 제목 (예: "제 5대 회장 취임사")
+  content      String // 인사말 본문 (HTML/Text)
+  imageUrl     String? // 인사말용 특별 사진 (기존 프로필과 다를 수 있음)
+  signImageUrl String?
+
+  displayOrder Int @default(0)
 
   isActive Boolean @default(true) // 현재 노출 여부
 
@@ -173,8 +177,9 @@ model Position {
   id Int @id @default(autoincrement())
 
   // 어느 조직의 직책인지
-  organizationId Int
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  generationId Int
+  generation   Generation @relation(fields: [generationId], references: [id])
 
   name        String // 예: "회장", "사무국장"
   rank        Int // 서열 (1: 최상위, 숫자가 클수록 하위)
@@ -192,7 +197,7 @@ model Position {
   // 이 직책을 맡은 사람들
   affiliations Affiliation[]
 
-  @@unique([organizationId, name])
+  @@unique([generationId, name])
 }
 
 model RefreshToken {

@@ -145,10 +145,10 @@ function OrgTreeItem({
 // 🏗️ 메인 에디터 컴포넌트
 export function OrgChartEditor({
   positions,
-  orgId,
+  genId,
 }: {
   positions: any[];
-  orgId: number;
+  genId: number;
 }) {
   // 입력 폼 상태 관리
   const [newPositionName, setNewPositionName] = useState("");
@@ -185,7 +185,7 @@ export function OrgChartEditor({
     const amountInt = parseInt(duesAmount.replace(/,/g, "")) || 0;
 
     const result = await createPositionAction({
-      organizationId: orgId,
+      generationId: genId,
       name: newPositionName,
       parentId: targetParentId,
       isExecutive,
