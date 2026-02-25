@@ -174,9 +174,12 @@ export default async function OrgHomePage({ params }: Props) {
 
       {/* 4. 하단 홍보 배너 (선택사항) */}
       <div className="mt-6 px-4">
-        <div className="w-full h-24 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-sm">
-          광고 / 홍보 배너 영역
-        </div>
+        <a href="https://forest119.com/shop/">
+          <div
+            className="w-full h-40 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-sm bg-cover bg-center"
+            style={{ backgroundImage: "url('/banner/main_banner.png')" }}
+          ></div>
+        </a>
       </div>
     </div>
   );
