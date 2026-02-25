@@ -214,7 +214,7 @@ export default function BylawsPage() {
                 위 회칙은 2026년 1월 1일 정기총회에서 의결되었습니다.
               </p>
               <div className="mt-4 inline-flex items-center gap-2 text-slate-800 font-bold border-b-2 border-slate-800 pb-1">
-                <span>회장 김 태 우</span>
+                <span>회장 허 태 조</span>
                 <span className="text-red-600 text-xs border border-red-600 px-0.5 ml-1">
                   인
                 </span>

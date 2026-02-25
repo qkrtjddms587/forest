@@ -56,7 +56,7 @@ export async function registerMemberAction(
             organizationId: aff.orgId,
             generationId: aff.genId,
             role: "USER",
-            status: "PENDING",
+            status: "ACTIVE",
             updatedAt: new Date(),
           },
         });

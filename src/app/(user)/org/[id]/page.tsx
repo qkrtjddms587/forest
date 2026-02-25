@@ -37,6 +37,7 @@ export default async function OrgHomePage({ params }: Props) {
   // 소속이 아니면 로비로 쫓아냄
   if (!myAffiliation) redirect("/");
 
+  console.log(myAffiliation);
   // 2. 최신 공지사항 5개 가져오기 (Post 모델이 있다고 가정)
   // 아직 Post 모델이 없다면 빈 배열로 처리됨
   const recentPosts = await prisma.post
@@ -57,6 +58,7 @@ export default async function OrgHomePage({ params }: Props) {
     { label: "회칙", icon: FileText, href: `/org/${orgId}/rules` },
     { label: "회비수납", icon: Megaphone, href: `/org/${orgId}/dues` },
     { label: "공지사항", icon: Bell, href: `/org/${orgId}/community` },
+    { label: "관리자모드", icon: Bell, href: `/admin` },
   ];
 
   return (
@@ -97,7 +99,7 @@ export default async function OrgHomePage({ params }: Props) {
 
       {/* 2. 퀵 메뉴 그리드 (파란색 박스) */}
       <div className="relative -mt-12 mx-4 z-20">
-        <div className="bg-brand-main rounded-2xl shadow-xl shadow-brand-main/20 p-5">
+        <div className="bg-green-600 rounded-2xl shadow-xl shadow-brand-main/20 p-5">
           <div className="grid grid-cols-3 gap-y-6">
             {quickMenus.map((menu, idx) => (
               <Link
@@ -105,7 +107,7 @@ export default async function OrgHomePage({ params }: Props) {
                 href={menu.href}
                 className="flex flex-col items-center gap-2 group cursor-pointer"
               >
-                <div className="p-2.5 rounded-full bg-white/10 group-hover:bg-white/20 transition-all group-active:scale-95">
+                <div className="p-2.5 rounded-full bg-black/20 group-hover:bg-white/20 transition-all group-active:scale-95">
                   <menu.icon className="w-6 h-6 text-white" strokeWidth={1.5} />
                 </div>
                 <span className="text-xs font-medium text-white/90 group-hover:text-white">
