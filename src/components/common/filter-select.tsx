@@ -52,7 +52,7 @@ export function FilterSelect({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">전체 기수</SelectItem>
+        <SelectItem value="all">전체</SelectItem>
         {options.map((opt) => (
           <SelectItem key={opt.id} value={String(opt.id)}>
             {opt.name}

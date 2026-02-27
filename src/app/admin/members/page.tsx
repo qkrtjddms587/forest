@@ -15,6 +15,11 @@ import { Users, UserPlus, ShieldCheck } from "lucide-react";
 import { FilterSelect } from "@/components/common/filter-select";
 import { SearchInput } from "@/components/common/search-input";
 import { MemberDetailSheet } from "@/components/admin/member-detail-sheet";
+import { CreateMemberDialog } from "./create-member-dialog";
+import { BulkCreateMemeberDialog } from "./bulk-create-member-dialog";
+import { MemberTable } from "./member-table";
+
+// 🌟 추가된 모달
 
 export default async function AdminMembersPage({
   searchParams,
@@ -31,13 +36,24 @@ export default async function AdminMembersPage({
 
   const { q, orgId, genId, status } = await searchParams;
 
-  // 1. 필터용 기본 데이터 로드
-  const [organizations, generations, stats] = await Promise.all([
+  // 1. 필터 및 모달용 기본 데이터 로드 (positions 추가)
+  const [organizations, generations, positions, stats] = await Promise.all([
     prisma.organization.findMany({
       select: { id: true, name: true },
       where: { deletedAt: null },
     }),
-    prisma.generation.findMany({ select: { id: true, name: true } }),
+
+    // 🌟 핵심 변경: orgId가 있으면 해당 소속의 기수만, 없으면 전체 기수를 가져옴
+    prisma.generation.findMany({
+      where: {
+        deletedAt: null,
+        ...(orgId && { organizationId: Number(orgId) }), // 👈 여기가 포인트!
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "desc" }, // 기수는 보통 숫자가 큰(최신) 순서대로 보는 게 편합니다.
+    }),
+
+    prisma.position.findMany({ orderBy: { rank: "asc" } }),
     prisma.affiliation.groupBy({
       by: ["status"],
       _count: true,
@@ -47,17 +63,16 @@ export default async function AdminMembersPage({
   const pendingCount = stats.find((s) => s.status === "PENDING")?._count || 0;
   const activeCount = stats.find((s) => s.status === "ACTIVE")?._count || 0;
 
-  // 2. Member 기준 쿼리 (소속 정보 포함)
+  const totalCount = pendingCount + activeCount;
+
+  // 2. Member 기준 쿼리
   const members = await prisma.member.findMany({
     where: {
       name: { contains: q || "" },
       affiliations: {
         some: {
-          // 소속 이력 자체가 유효하고
-          organization: { deletedAt: null }, // 🌟 소속된 조직이 삭제되지 않았으며
-          generation: { deletedAt: null }, // 🌟 소속된 기수가 삭제되지 않은 경우
-
-          // 필터 조건들
+          organization: { deletedAt: null },
+          generation: { deletedAt: null },
           ...(orgId && { organizationId: Number(orgId) }),
           ...(genId && { generationId: Number(genId) }),
           ...(status && { status: status as any }),
@@ -67,7 +82,7 @@ export default async function AdminMembersPage({
     include: {
       affiliations: {
         where: {
-          organization: { deletedAt: null }, // 🌟 결과 목록에서도 삭제된 조직 데이터 제외
+          organization: { deletedAt: null },
           generation: { deletedAt: null },
         },
         include: {
@@ -79,6 +94,7 @@ export default async function AdminMembersPage({
       },
     },
     orderBy: { name: "asc" },
+    take: 20, // 👈 무한 스크롤 초기 데이터
   });
 
   return (
@@ -87,17 +103,17 @@ export default async function AdminMembersPage({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title="전체 회원수"
-          count={members.length}
+          count={totalCount}
           icon={<Users className="text-blue-600" />}
         />
         <StatCard
-          title="승인 대기중"
+          title="미가입 회원수"
           count={pendingCount}
           icon={<UserPlus className="text-orange-500" />}
           highlight={pendingCount > 0}
         />
         <StatCard
-          title="활동 임원/정회원"
+          title="활동 유료회원"
           count={activeCount}
           icon={<ShieldCheck className="text-green-600" />}
         />
@@ -130,105 +146,28 @@ export default async function AdminMembersPage({
                 ]}
               />
               <SearchInput placeholder="이름 검색..." />
+
+              {/* 🌟 회원 생성 버튼 (모달) 추가 */}
+              <div className="ml-2 border-l pl-4 space-x-2 border-slate-200">
+                <BulkCreateMemeberDialog
+                  organizations={organizations}
+                  generations={generations}
+                />
+                <CreateMemberDialog
+                  organizations={organizations}
+                  generations={generations}
+                  positions={positions}
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-slate-50/80">
-                <TableRow>
-                  <TableHead className="pl-6 w-[180px]">
-                    이름 / 연락처
-                  </TableHead>
-                  <TableHead>현재 소속 및 활동 이력</TableHead>
-                  <TableHead className="w-[120px]">최근 활동일</TableHead>
-                  <TableHead className="pr-6 text-right w-[100px]">
-                    액션
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow
-                    key={member.id}
-                    className="hover:bg-slate-50/30 transition-colors group"
-                  >
-                    <TableCell className="pl-6 font-medium">
-                      <div className="flex flex-col">
-                        <span className="text-slate-900 font-bold">
-                          {member.name}
-                        </span>
-                        <span className="text-xs text-slate-400 font-normal">
-                          {member.phone || "연락처 미등록"}
-                        </span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {member.affiliations.map((aff) => (
-                          <div
-                            key={aff.id}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] font-medium transition-all
-                              ${
-                                aff.status === "ACTIVE"
-                                  ? "bg-white border-slate-200 text-slate-700 shadow-sm"
-                                  : "bg-slate-100 text-slate-400 border-transparent opacity-60"
-                              }`}
-                          >
-                            <span
-                              className={
-                                aff.status === "ACTIVE" ? "text-blue-600" : ""
-                              }
-                            >
-                              {aff.organization.name}
-                            </span>
-                            <span className="text-slate-400">|</span>
-                            <span>{aff.generation.name}</span>
-
-                            {aff.Position && (
-                              <Badge className="h-4 px-1 text-[9px] bg-slate-800 hover:bg-slate-800 text-white border-none">
-                                {aff.Position.name}
-                              </Badge>
-                            )}
-
-                            {aff.status === "PENDING" && (
-                              <span className="animate-pulse text-orange-500 font-bold ml-1">
-                                ● 대기
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="text-xs text-slate-500">
-                      {member.affiliations[0]
-                        ? new Date(
-                            member.affiliations[0].createdAt
-                          ).toLocaleDateString()
-                        : "-"}
-                    </TableCell>
-
-                    <TableCell className="pr-6 text-right">
-                      <MemberDetailSheet member={member}>
-                        <button className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors underline-offset-4 hover:underline">
-                          상세관리
-                        </button>
-                      </MemberDetailSheet>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {members.length === 0 && (
-            <div className="py-20 text-center text-slate-400 text-sm">
-              검색 결과에 해당하는 회원이 없습니다.
-            </div>
-          )}
+          <MemberTable
+            initialMembers={members}
+            searchParams={{ q, orgId, genId, status }}
+          />
         </CardContent>
       </Card>
     </div>
