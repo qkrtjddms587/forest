@@ -7,5 +7,5 @@ export default NextAuth(authConfig).auth;
 
 export const config = {
   // api, static 파일 등은 미들웨어 제외
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|privacy).*)"],
 };
