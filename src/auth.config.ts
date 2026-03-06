@@ -5,28 +5,32 @@ export const authConfig = {
     signIn: "/login",
   },
   callbacks: {
-    // 미들웨어에서 로그인 여부를 체크하는 로직
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const path = nextUrl.pathname;
 
+      // ✅ 공개 페이지(로그인 없이 접근 가능) 정의
+      const isPublicPage =
+        path.startsWith("/api") ||
+        path.startsWith("/privacy") ||
+        path.startsWith("/app/bootstrap");
       const isOnLoginPage = path.startsWith("/login");
-      const isBootstrap = path.startsWith("/app/bootstrap");
 
-      if (isBootstrap) return true;
-      // 1. 로그인 했는데 로그인 페이지로 가려면 -> 메인으로 보냄
+      // 1. 공개 페이지는 로그인 여부 상관없이 무조건 통과
+      if (isPublicPage) return true;
+
+      // 2. 로그인 상태인데 로그인 페이지로 가려고 하면 메인으로 리다이렉트
       if (isOnLoginPage && isLoggedIn) {
         return Response.redirect(new URL("/", nextUrl));
       }
 
-      // 2. 로그인 안 했는데 메인(보호된 구역)으로 가려면 -> 로그인 페이지로 보냄
-      // (이미지, API 등은 middleware.ts의 matcher에서 걸러짐)
-      if (!isOnLoginPage && !isLoggedIn) {
-        return false; // false를 리턴하면 자동으로 로그인 페이지로 리다이렉트됨
+      // 3. 로그인 안 됐는데 보호된 구역에 가려고 하면 로그인 페이지로 (false 반환)
+      if (!isLoggedIn && !isOnLoginPage) {
+        return false;
       }
 
       return true;
     },
   },
-  providers: [], // 미들웨어에서는 공급자 로직을 비워둡니다.
+  providers: [],
 } satisfies NextAuthConfig;
