@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings2, UserPlus, Megaphone } from "lucide-react";
+import { Settings2, UserPlus, Megaphone, ImageIcon } from "lucide-react";
 
 export function TabNavigation({ orgId }: { orgId: string }) {
   const pathname = usePathname();
@@ -18,6 +18,11 @@ export function TabNavigation({ orgId }: { orgId: string }) {
       name: "인사말 관리",
       href: `/admin/org-chart/${orgId}/greeting`,
       icon: Megaphone,
+    },
+    {
+      name: "배너 관리",
+      href: `/admin/org-chart/${orgId}/banners`, // 실제 라우터 경로에 맞게 수정 필요 시 수정
+      icon: ImageIcon,
     },
   ];
 

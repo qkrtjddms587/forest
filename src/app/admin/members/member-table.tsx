@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { MemberDetailSheet } from "@/components/admin/member-detail-sheet";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, CheckCircle } from "lucide-react"; // 🌟 CheckCircle 아이콘 추가
 import {
   bulkDeleteMembersAction,
   getMoreMembersAction,
+  bulkApproveMembersAction, // 🌟 새로 만든 서버 액션 임포트
 } from "@/actions/member-actions";
 
 interface MemberTableProps {
@@ -37,12 +38,10 @@ export function MemberTable({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  // 무한 스크롤 상태
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(initialMembers.length === 20);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // 검색 필터가 변경되면 상태 초기화
   useEffect(() => {
     setMembers(initialMembers);
     setPage(1);
@@ -50,7 +49,6 @@ export function MemberTable({
     setSelectedIds([]);
   }, [initialMembers, searchParams]);
 
-  // 마지막 요소 옵저버 (스크롤 바닥 감지)
   const observer = useRef<IntersectionObserver | null>(null);
   const lastMemberElementRef = useCallback(
     (node: HTMLTableRowElement) => {
@@ -81,7 +79,6 @@ export function MemberTable({
     [isLoadingMore, hasMore, page, searchParams]
   );
 
-  // 다중 선택 관리
   const handleSelectAll = (checked: boolean) => {
     if (checked) setSelectedIds(members.map((m) => m.id));
     else setSelectedIds([]);
@@ -93,7 +90,6 @@ export function MemberTable({
       setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
   };
 
-  // 일괄 삭제
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
     if (
@@ -107,7 +103,6 @@ export function MemberTable({
       const result = await bulkDeleteMembersAction(selectedIds);
       if (result.success) {
         setSelectedIds([]);
-        // 삭제 성공 후 프론트엔드 목록에서도 즉시 제거 (부드러운 UX)
         setMembers((prev) => prev.filter((m) => !selectedIds.includes(m.id)));
         alert("성공적으로 삭제되었습니다.");
       } else {
@@ -116,34 +111,89 @@ export function MemberTable({
     });
   };
 
+  // 🌟 일괄 승인 핸들러 추가
+  const handleBulkApprove = () => {
+    if (selectedIds.length === 0) return;
+    if (
+      !confirm(
+        `선택한 ${selectedIds.length}명의 회원을 일괄 승인 처리하시겠습니까?`
+      )
+    )
+      return;
+
+    startTransition(async () => {
+      const result = await bulkApproveMembersAction(selectedIds);
+      if (result.success) {
+        setSelectedIds([]);
+
+        // 🌟 삭제처럼 목록에서 지우는 게 아니라, 로컬 상태의 status만 'ACTIVE'로 즉시 변경
+        setMembers((prev) =>
+          prev.map((m) => {
+            if (selectedIds.includes(m.id)) {
+              return {
+                ...m,
+                affiliations: m.affiliations.map((aff: any) => ({
+                  ...aff,
+                  status: aff.status === "PENDING" ? "ACTIVE" : aff.status,
+                })),
+              };
+            }
+            return m;
+          })
+        );
+        alert("성공적으로 승인되었습니다.");
+      } else {
+        alert(result.error);
+      }
+    });
+  };
+
   return (
     <div>
-      {/* 다중 선택 시 나타나는 상단 액션 바 */}
+      {/* 🌟 다중 선택 액션 바: 파란색 톤으로 변경 및 승인 버튼 추가 */}
       {selectedIds.length > 0 && (
-        <div className="bg-red-50 p-3 flex items-center justify-between border-b border-red-100 transition-all">
-          <span className="text-sm font-bold text-red-600 ml-2">
+        <div className="bg-blue-50 p-3 flex items-center justify-between border-b border-blue-100 transition-all">
+          <span className="text-sm font-bold text-blue-700 ml-2">
             {selectedIds.length}명 선택됨
           </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleBulkDelete}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Trash2 className="w-4 h-4 mr-2" />
-            )}
-            선택 일괄 삭제
-          </Button>
+          <div className="flex gap-2">
+            {/* 일괄 승인 버튼 */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleBulkApprove}
+              disabled={isPending}
+              className="bg-brand-main hover:bg-brand-main/90"
+            >
+              {isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              선택 일괄 승인
+            </Button>
+
+            {/* 일괄 삭제 버튼 */}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              선택 일괄 삭제
+            </Button>
+          </div>
         </div>
       )}
 
+      {/* 테이블 영역 (이하 코드는 기존과 완벽히 동일) */}
       <div className="rounded-md border border-slate-200 [&>div]:max-h-[calc(100vh-320px)] [&>div]:overflow-auto relative">
         <Table>
-          {/* 🌟 2. TableHeader에 sticky top-0 과 z-20, 그리고 배경색을 줍니다. 
-                 shadow를 주면 스크롤될 때 헤더 아래에 예쁜 그림자/경계선이 생겨서 훨씬 고급스럽습니다. */}
           <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]">
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-[50px] pl-6">
@@ -256,7 +306,6 @@ export function MemberTable({
           </TableBody>
         </Table>
 
-        {/* 무한 스크롤 로딩 표시기 */}
         {isLoadingMore && (
           <div className="flex justify-center items-center py-6 text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin mr-2" />

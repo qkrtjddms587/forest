@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Users, UserPlus, ShieldCheck } from "lucide-react";
 import { FilterSelect } from "@/components/common/filter-select";
 import { SearchInput } from "@/components/common/search-input";
-import { MemberDetailSheet } from "@/components/admin/member-detail-sheet";
 import { CreateMemberDialog } from "./create-member-dialog";
 import { BulkCreateMemeberDialog } from "./bulk-create-member-dialog";
 import { MemberTable } from "./member-table";
