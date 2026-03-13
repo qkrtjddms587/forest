@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "randomuser.me", // 👈 에러가 난 도메인 추가
+        hostname: "s3.spaysm.com", // 👈 에러가 난 도메인 추가
         pathname: "/**", // 해당 도메인의 모든 경로 허용
       },
     ],

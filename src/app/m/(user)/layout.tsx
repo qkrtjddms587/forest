@@ -1,5 +1,4 @@
-import MainContent from "@/components/layout/main-content";
-import { UserNav } from "@/components/user/user-nav";
+import MobileContent from "@/components/layout/mobile-content";
 
 export default function UserLayout({
   children,
@@ -13,7 +12,7 @@ export default function UserLayout({
 
       {/* 컨텐츠 영역 */}
       {/* PC에서는 헤더 높이만큼, 모바일에서는 탭바 높이만큼 여백을 줌 */}
-      <MainContent>{children}</MainContent>
+      <MobileContent>{children}</MobileContent>
     </div>
   );
 }

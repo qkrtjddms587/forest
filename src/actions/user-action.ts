@@ -10,7 +10,7 @@ const ProfileSchema = z.object({
   company: z.string().optional(),
   job: z.string().optional(),
   address: z.string().optional(),
-  // 필요하다면 이메일이나 전화번호 변경 로직도 추가 가능
+  image: z.string().optional().nullable(), // 🌟 추가: S3에서 받은 경로(string)가 들어옵니다.
 });
 
 export async function updateMyProfileAction(
@@ -22,16 +22,22 @@ export async function updateMyProfileAction(
 
   try {
     await prisma.member.update({
-      where: { id: Number(session.user.id) }, // 👈 내 ID로만 수정 가능 (보안)
+      where: { id: Number(session.user.id) },
       data: {
         company: data.company || null,
         job: data.job || null,
         address: data.address || null,
+        // 🌟 이미지 필드 추가
+        image: data.image || null,
       },
     });
 
-    revalidatePath("/profile"); // 프로필 페이지 갱신
-    revalidatePath("/search"); // 검색 결과에서도 바뀌어야 함
+    // 갱신이 필요한 경로들
+    revalidatePath("/profile");
+    revalidatePath("/search");
+    // 보통 헤더나 사이드바의 아바타도 바뀌어야 하므로 레이아웃 갱신도 고려하세요
+    revalidatePath("/", "layout");
+
     return { success: true, message: "내 정보가 수정되었습니다." };
   } catch (error) {
     console.error(error);

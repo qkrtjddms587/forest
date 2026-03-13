@@ -75,7 +75,7 @@ export function InfiniteMemberList({
           address={aff.member.address || ""}
           phone={aff.member.phone}
           generation={aff.generation.name}
-          imageUrl={aff.member.id || undefined}
+          imageUrl={aff.member.image || undefined}
         />
       ))}
 

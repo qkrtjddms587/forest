@@ -1,12 +1,10 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { EditProfileDialog } from "./edit-profile-dialog"; // 👈 추가
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -37,7 +35,8 @@ export default async function ProfilePage() {
           <Avatar className="w-16 h-16">
             <AvatarImage
               src={
-                `https://randomuser.me/api/portraits/men/${member.id}.jpg` || ""
+                `${process.env.NEXT_PUBLIC_S3_DOMAIN}/${process.env.NEXT_PUBLIC_S3_BUCKET}${member.image}` ||
+                ""
               }
             />
             <AvatarFallback className="bg-slate-200 text-xl font-bold text-slate-500">
@@ -111,7 +110,7 @@ export default async function ProfilePage() {
           </div>
         </CardContent>
       </Card>
-      <div className="pt-4">
+      {/* <div className="pt-4">
         <form
           action={async () => {
             "use server";
@@ -123,7 +122,7 @@ export default async function ProfilePage() {
             로그아웃
           </Button>
         </form>
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -37,7 +37,6 @@ export default async function OrgHomePage({ params }: Props) {
   // 소속이 아니면 로비로 쫓아냄
   if (!myAffiliation) redirect("/");
 
-  console.log(myAffiliation);
   // 2. 최신 공지사항 5개 가져오기 (Post 모델이 있다고 가정)
   // 아직 Post 모델이 없다면 빈 배열로 처리됨
   const recentPosts = await prisma.post

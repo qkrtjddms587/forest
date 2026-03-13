@@ -42,7 +42,7 @@ export default async function OrgSearchPage({ params, searchParams }: Props) {
   return (
     <div className="bg-slate-100 min-h-screen flex flex-col pb-20">
       {/* 상단 검색 및 필터 영역 */}
-      <div className="fixed top-16 w-full z-30 bg-white shadow-sm border-b p-3 space-y-3 max-w-4xl mx-auto">
+      <div className="fixed top-0 w-full z-30 bg-white shadow-sm border-b p-3 space-y-3 max-w-4xl mx-auto">
         <div className="flex gap-2">
           <FilterSelect
             placeholder="기수 선택"

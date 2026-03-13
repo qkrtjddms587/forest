@@ -1,130 +1,183 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { PenSquare, MessageSquare, Eye } from "lucide-react";
+import { Search, PenSquare } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns"; // npm i date-fns (없으면 설치 추천)
+import { format } from "date-fns";
+
+// 🌟 탭 메뉴 정의
+const TABS = [
+  { label: "공지사항", value: "NOTICE" },
+  { label: "갤러리", value: "GALLERY" },
+  { label: "홍보", value: "ADS" },
+  { label: "행사일정", value: "EVENT" },
+];
 
 export default async function CommunityPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ type?: string; q?: string }>;
 }) {
   const { id } = await params;
   const orgId = Number(id);
   const session = await auth();
 
-  // 1. 게시글 조회 (공지사항 우선 정렬)
+  const resolvedSearchParams = await searchParams;
+  const currentType = resolvedSearchParams.type || "NOTICE";
+  const searchQuery = resolvedSearchParams.q || "";
+
+  // 게시글 조회
   const posts = await prisma.post.findMany({
-    where: { organizationId: orgId },
+    where: {
+      organizationId: orgId,
+      type: currentType,
+      ...(searchQuery && { title: { contains: searchQuery } }),
+    },
     include: {
       author: { select: { name: true } },
       _count: { select: { comments: true } },
+      // 썸네일용 (갤러리일 때만 유효하게 쓰임)
+      images: { take: 1, select: { url: true } },
     },
-    orderBy: [
-      { type: "desc" }, // NOTICE(N)가 FREE(F)보다 뒤에 오므로 desc하면 NOTICE가 먼저 옴 (알파벳순) -> 실제로는 type enum 관리가 필요하지만 여기선 간단히
-      { createdAt: "desc" },
-    ],
+    orderBy: { createdAt: "desc" },
   });
 
-  // 간단한 날짜 포맷 함수
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("ko-KR", {
-      month: "long",
-      day: "numeric",
-    });
-  };
-
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 min-h-screen">
-      {/* 헤더 영역 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">커뮤니티</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            자유롭게 소통하는 공간입니다.
-          </p>
-        </div>
-        <Link href={`/org/${orgId}/community/write`}>
-          <Button className="bg-brand-main hover:bg-brand-main/90 gap-2">
-            <PenSquare className="w-4 h-4" /> 글쓰기
-          </Button>
-        </Link>
+    <div className="mx-auto bg-white min-h-screen relative pb-20">
+      {/* 1. 상단 탭 (셀렉터) */}
+      <div className="flex overflow-x-auto border-b border-gray-200 sticky top-0 bg-white z-10 scrollbar-hide">
+        {TABS.map((tab) => {
+          const isActive = currentType === tab.value;
+          return (
+            <Link
+              key={tab.value}
+              href={`/m/org/${orgId}/community?type=${tab.value}`}
+              className={`whitespace-nowrap px-4 py-3 font-bold text-base transition-colors ${
+                isActive
+                  ? "text-brand-main border-b-2 border-brand-main"
+                  : "text-slate-700 hover:text-slate-900"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
       </div>
 
-      {/* 게시글 리스트 */}
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-        {posts.length === 0 ? (
-          <div className="p-10 text-center text-slate-500">
-            등록된 게시글이 없습니다. 첫 글을 남겨보세요!
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {posts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/org/${orgId}/community/${post.id}`}
-                className={`block p-4 hover:bg-slate-50 transition-colors ${
-                  post.type === "NOTICE" ? "bg-slate-50/80" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {post.type === "NOTICE" && (
-                        <Badge
-                          variant="secondary"
-                          className="bg-red-50 text-red-600 border-red-100 px-1.5 py-0 h-5 text-[10px]"
-                        >
-                          공지
-                        </Badge>
-                      )}
-                      <h3
-                        className={`font-medium truncate ${
-                          post.type === "NOTICE"
-                            ? "text-slate-900 font-bold"
-                            : "text-slate-700"
-                        }`}
-                      >
+      <div className="p-4">
+        {/* 2. 검색창 */}
+        <form className="relative mb-6">
+          <input type="hidden" name="type" value={currentType} />
+          <input
+            type="text"
+            name="q"
+            defaultValue={searchQuery}
+            placeholder="검색어를 입력해 보세요."
+            className="w-full bg-[#E5F3FF] text-slate-700 placeholder:text-slate-500 rounded-full py-2.5 pl-4 pr-10 outline-none focus:ring-2 focus:ring-brand-main/20"
+          />
+          <button
+            type="submit"
+            className="absolute right-4 top-1/2 -translate-y-1/2"
+          >
+            <Search className="w-5 h-5 text-slate-800" />
+          </button>
+        </form>
+
+        {/* 3. 게시글 리스트 영역 */}
+        {/* 🌟 갤러리일 때는 카드 간격(gap-4)을 주고, 아닐 때는 붙여서(border-b로 구분) 렌더링 */}
+        <div
+          className={`flex flex-col ${
+            currentType === "GALLERY" ? "gap-2" : ""
+          }`}
+        >
+          {posts.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 text-sm">
+              {searchQuery
+                ? "검색 결과가 없습니다."
+                : "등록된 게시글이 없습니다."}
+            </div>
+          ) : (
+            posts.map((post) => {
+              // ==========================================
+              // 🎨 A. 갤러리 타입일 때의 카드 레이아웃
+              // ==========================================
+              if (currentType === "GALLERY") {
+                return (
+                  <Link
+                    key={post.id}
+                    href={`/m/org/${orgId}/community/${post.id}`}
+                    className="p-3 border border-gray-200 rounded-xl bg-white shadow-sm flex gap-4"
+                  >
+                    {/* 썸네일 (왼쪽) */}
+                    <div className="shrink-0 w-24 h-24 bg-gray-200 rounded-md overflow-hidden">
+                      {post.images?.[0] ? (
+                        <img
+                          src={`${process.env.NEXT_PUBLIC_S3_DOMAIN}/${process.env.NEXT_PUBLIC_S3_BUCKET}${post.images[0].url}`}
+                          alt="썸네일"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+
+                    {/* 텍스트 영역 (오른쪽) */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                      {/* 제목: 최대 2줄까지만 허용하고 넘어가면 ... 처리 (line-clamp-2) */}
+                      <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">
                         {post.title}
                       </h3>
-                      {/* 모바일용 댓글 수 (제목 옆) */}
-                      {post._count.comments > 0 && (
-                        <span className="text-brand-main text-xs font-bold flex items-center md:hidden">
-                          [{post._count.comments}]
-                        </span>
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-1.5">
-                      <span className="text-slate-600 font-medium">
-                        {post.author.name}
-                      </span>
-                      <span>·</span>
-                      <span>{formatDate(post.createdAt)}</span>
-                      <span className="hidden md:inline">·</span>
-                      <span className="hidden md:flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> {post.viewCount}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 데스크탑용 댓글/조회수 박스 */}
-                  <div className="hidden md:flex flex-col items-end gap-1 text-slate-400 min-w-[60px]">
-                    {post._count.comments > 0 && (
-                      <div className="flex items-center gap-1 text-brand-main font-bold text-sm bg-blue-50 px-2 py-0.5 rounded-full">
-                        <MessageSquare className="w-3 h-3" />{" "}
-                        {post._count.comments}
+                      {/* 하단 메타: 시안처럼 양끝 정렬 (justify-between) */}
+                      <div className="flex justify-between items-center text-xs text-slate-400">
+                        <span>{format(post.createdAt, "yy.MM.dd")}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span>댓글 {post._count.comments}</span>
+                          <span className="text-slate-300">|</span>
+                          <span>조회 {post.viewCount || 0}</span>
+                        </div>
                       </div>
-                    )}
+                    </div>
+                  </Link>
+                );
+              }
+
+              // ==========================================
+              // 🎨 B. 일반 게시판(공지사항 등)일 때의 리스트 레이아웃
+              // ==========================================
+              return (
+                <Link
+                  key={post.id}
+                  href={`/m/org/${orgId}/community/${post.id}`}
+                  className="py-4 border-b border-gray-200 block hover:bg-slate-50 transition-colors"
+                >
+                  <h3 className="text-[17px] font-bold text-slate-900 mb-2 leading-snug break-words">
+                    {post.title}
+                  </h3>
+
+                  <div className="flex items-center flex-wrap gap-x-2 text-[13px] text-slate-400">
+                    {/* 작성자가 '관리자'로 하드코딩 되어야 한다면 "관리자"로 수정하셔도 됩니다 */}
+                    <span>{post.author.name}</span>
+                    <span>{format(post.createdAt, "yyyy.MM.dd")}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>{format(post.createdAt, "HH:mm")}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>댓글 {post._count.comments}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>조회 {post.viewCount || 0}</span>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+                </Link>
+              );
+            })
+          )}
+        </div>
       </div>
+
+      {/* 4. 플로팅 글쓰기 버튼 */}
+      <Link href={`/m/org/${orgId}/community/write`}>
+        <button className="fixed bottom-24 right-4 bg-brand-main text-white p-4 rounded-full shadow-lg hover:bg-brand-main/80 transition-transform active:scale-95 flex items-center justify-center">
+          <PenSquare className="w-6 h-6" />
+        </button>
+      </Link>
     </div>
   );
 }

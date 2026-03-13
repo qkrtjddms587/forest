@@ -1,3 +1,4 @@
+import { IntroTabs } from "@/components/common/intro-tabs";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 
@@ -11,6 +12,7 @@ export default async function UserOrgChartPage({
   searchParams,
 }: Props) {
   const { id } = await params;
+  const orgId = Number(id);
   const { gen } = await searchParams;
 
   if (!id || isNaN(Number(id))) return notFound();
@@ -37,7 +39,7 @@ export default async function UserOrgChartPage({
   // 2. 직책(Position) 및 소속 회원 로드 (rank 오름차순)
   const positionsWithMembers = await prisma.position.findMany({
     where: { generationId: currentGenId },
-    orderBy: { rank: "asc" },
+    orderBy: { rank: "asc" }, // 🌟 DB에서 가져올 때 이미 예쁘게 정렬된 상태!
     include: {
       affiliations: {
         where: { status: "ACTIVE" },
@@ -47,63 +49,75 @@ export default async function UserOrgChartPage({
     },
   });
 
-  // 🌟 3. rank(순위)를 기준으로 직책들을 그룹화합니다. (핵심 로직)
-  // 같은 rank를 가진 직책들끼리 같은 가로줄(Row)에 배치하기 위함입니다.
-  const rankGroups = positionsWithMembers.reduce((acc, pos) => {
-    if (pos.affiliations.length === 0) return acc; // 사람 없는 직책은 숨김
-    if (!acc[pos.rank]) acc[pos.rank] = [];
-    acc[pos.rank].push(pos);
+  // 🌟 3. 핵심 로직: Rank가 아닌 "계층(Depth)"을 계산해서 그룹화합니다!
+
+  // 3-1. 부모를 찾기 위해 전체 직책을 Map에 담아둡니다.
+  const posMap = new Map(positionsWithMembers.map((p) => [p.id, p]));
+
+  // 3-2. 이 직책이 조직도의 몇 층(Depth)에 있는지 계산하는 재귀 함수
+  const getDepth = (parentId: number | null): number => {
+    let depth = 0;
+    let currentId = parentId;
+    while (currentId) {
+      depth++;
+      const parent = posMap.get(currentId);
+      currentId = parent?.parentId || null;
+    }
+    return depth; // 회장=0층, 부회장=1층, 부장=2층...
+  };
+
+  // 3-3. 층수(depth)를 기준으로 직책들을 그룹화합니다.
+  const depthGroups = positionsWithMembers.reduce((acc, pos) => {
+    // if (pos.affiliations.length === 0) return acc; // 사람 없는 직책은 화면에서 숨김
+
+    const depth = getDepth(pos.parentId); // 🌟 여기가 핵심!
+
+    if (!acc[depth]) acc[depth] = [];
+    acc[depth].push(pos);
     return acc;
   }, {} as Record<number, typeof positionsWithMembers>);
 
-  const sortedRanks = Object.keys(rankGroups)
+  // 0층, 1층, 2층 순서대로 배열 생성
+  const sortedDepths = Object.keys(depthGroups)
     .map(Number)
     .sort((a, b) => a - b);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-16 min-h-screen bg-white font-sans">
-      {/* 🌟 타이틀 영역 (이미지와 동일한 붉은 사각형 데코레이션) */}
-      <div className="flex flex-col items-center justify-center gap-2 mb-16 text-center">
-        <div className="flex items-center justify-center gap-3">
-          <div className="w-5 h-5 bg-brand-main -skew-x-12 shadow-sm" />
-          <h1 className="text-2xl md:text-3xl font-black text-[#152a4e] tracking-tight whitespace-pre-wrap">
-            {currentGen.organization.name} {currentGen.name}
-          </h1>
+    <div className="relative">
+      <IntroTabs orgId={orgId} currentTab="orgchart" />
+      <div className="max-w-4xl mx-auto px-4 py-16 min-h-screen bg-white font-sans">
+        {/* ... 타이틀 영역 기존과 동일 ... */}
+
+        {/* 🌟 조직도 트리 영역 */}
+        <div className="flex flex-col items-center space-y-8">
+          {/* 🌟 sortedRanks 대신 sortedDepths를 순회합니다 */}
+          {sortedDepths.map((depth, index) => {
+            const positionsInThisDepth = depthGroups[depth];
+            const isPresidentRank = index === 0; // 0층(최상단)은 리더로 취급 (빨간 박스)
+
+            return (
+              // 같은 층(Depth)에 있는 직책들을 가로로 나란히 배치
+              <div
+                key={`depth-${depth}`}
+                className={`w-full flex justify-center gap-4 md:gap-6 flex-wrap`}
+              >
+                {positionsInThisDepth.map((position) => (
+                  <OrgBox
+                    key={position.id}
+                    title={position.name}
+                    members={position.affiliations}
+                    isLeader={isPresidentRank}
+                    className={
+                      positionsInThisDepth.length === 1
+                        ? "w-full max-w-[320px]"
+                        : "w-full max-w-[260px] flex-1"
+                    }
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
-        <h2 className="text-3xl md:text-4xl font-black text-[#152a4e] tracking-widest mt-1">
-          조 직 도
-        </h2>
-      </div>
-
-      {/* 🌟 조직도 트리 영역 */}
-      <div className="flex flex-col items-center space-y-8">
-        {sortedRanks.map((rank, index) => {
-          const positionsInThisRank = rankGroups[rank];
-          const isPresidentRank = index === 0; // 가장 첫 번째 랭크(회장)는 빨간색
-
-          return (
-            // 랭크별 가로 줄 (1개면 중앙 정렬, 여러 개면 그리드 정렬)
-            <div
-              key={rank}
-              className={`w-full flex justify-center gap-4 md:gap-6 flex-wrap`}
-            >
-              {positionsInThisRank.map((position) => (
-                <OrgBox
-                  key={position.id}
-                  title={position.name}
-                  members={position.affiliations}
-                  isLeader={isPresidentRank}
-                  // 직책이 여러 개면 박스 크기를 제한해서 나란히 놓이게 함
-                  className={
-                    positionsInThisRank.length === 1
-                      ? "w-full max-w-[320px]"
-                      : "w-full max-w-[260px] flex-1"
-                  }
-                />
-              ))}
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -121,50 +135,60 @@ function OrgBox({
   isLeader?: boolean;
   className?: string;
 }) {
-  // 박스 안의 인원 수에 따라 그리드 컬럼 조절 (2명이면 2칸, 3명이면 2칸(자동줄바꿈) 등)
-  const gridCols = members.length > 1 ? "grid-cols-2" : "grid-cols-1";
+  // 🌟 핵심 로직: 3명 이상일 때만 2열(grid-cols-2)로 쪼갭니다.
+  const gridCols = members.length >= 3 ? "grid-cols-2" : "grid-cols-1";
 
   return (
     <div
-      className={`rounded-xl overflow-hidden bg-white shadow-md border border-green-50/50 flex flex-col ${className}`}
+      className={`rounded-xl overflow-hidden bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border-2 border-slate-50 flex flex-col ${className}`}
     >
-      {/* 박스 헤더 (빨강 or 네이비) */}
+      {/* 박스 헤더 */}
       <div
-        className={`py-3 text-center ${
-          isLeader ? "bg-brand-main" : "bg-[#152a4e]"
+        className={`py-2 text-center ${
+          isLeader ? "bg-brand-main" : "bg-[#18294a]"
         }`}
       >
-        <h3 className="text-xl font-black text-white tracking-widest">
+        <h3 className="text-[17px] font-black text-white tracking-widest">
           {title}
         </h3>
       </div>
 
       {/* 박스 바디 (멤버 리스트) */}
-      <div className="p-5 flex-1 flex items-center justify-center">
-        <div
-          className={`w-full grid ${gridCols} gap-y-6 gap-x-2 place-items-center`}
-        >
-          {members.map((aff) => (
-            <div
-              key={aff.id}
-              className="text-center flex flex-col items-center w-full"
-            >
-              <div className="flex items-baseline justify-center gap-1 w-full">
-                <span className="text-[17px] font-extrabold text-slate-900 tracking-wide">
-                  {aff.member.name}
-                </span>
-                {/* 만약 Affiliation이나 Position에 국장/차장 등 세부 직책(role) 정보가 있다면 여기에 노출 */}
-                {/* <span className="text-[11px] font-bold text-[#f58220]">{aff.role}</span> */}
+      {members.length !== 0 ? (
+        <div className="py-4 flex-1 flex items-center justify-center">
+          {/* 🌟 padding과 gap을 넉넉히 주어 쾌적하게 보이도록 수정 */}
+          <div className={`w-full grid ${gridCols} gap-y-4 gap-x-2 px-2`}>
+            {members.map((aff) => (
+              <div
+                key={aff.id}
+                className="text-center flex flex-col items-center w-full"
+              >
+                <div className="flex items-center justify-center gap-1.5 w-full">
+                  <span className="text-[15px] font-bold text-slate-800 tracking-wide">
+                    {aff.member.name}
+                  </span>
+                  {/* 🌟 주석 해제 및 디자인 적용: 국장, 차장 등 역할 표시 */}
+                  {aff.role && aff.role !== "USER" && (
+                    <span className="text-[11px] font-extrabold text-orange-500 mt-0.5">
+                      {aff.role}
+                    </span>
+                  )}
+                </div>
+                {aff.member.phone && (
+                  <span className="text-xs text-slate-500 mt-0.5">
+                    {aff.member.phone}
+                  </span>
+                )}
               </div>
-              {aff.member.phone && (
-                <span className="text-[11px] font-semibold text-slate-500 mt-0.5 tracking-wider">
-                  {aff.member.phone}
-                </span>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        // 멤버가 0명일 때 박스 안이 찌그러지지 않도록 빈 공간 처리
+        <div className="py-6 flex items-center justify-center text-xs text-slate-300">
+          공석
+        </div>
+      )}
     </div>
   );
 }

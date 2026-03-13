@@ -1,8 +1,11 @@
 "use server";
 
+import { syncMemberToGnuboard } from "@/lib/gnuboard/gnuboard-sync";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+
+// 🌟 추가: 분리해둔 그누보드 동기화 함수 임포트
 
 interface GetMembersParams {
   q?: string;
@@ -12,10 +15,11 @@ interface GetMembersParams {
   page: number;
 }
 
-// React Query에서 pageParam을 넘겨줄 것입니다.
+// ... (getMembersAction, getMoreMembersAction은 기존과 100% 동일하므로 생략 없이 그대로 두시면 됩니다) ...
+
 export async function getMembersAction({
   orgId,
-  page = 1, // pageParam이 여기로 들어옴
+  page = 1,
   query = "",
   generationId,
 }: {
@@ -29,14 +33,7 @@ export async function getMembersAction({
   const whereCondition = {
     organizationId: orgId,
     status: "ACTIVE" as const,
-
-    // 🌟 핵심 추가: 연결된 member의 이름이 '최고관리자'가 아닌 것만 필터링!
-    member: {
-      name: {
-        not: "최고관리자",
-      },
-    },
-
+    member: { name: { not: "최고관리자" } }, // 최고관리자 제외
     OR: query
       ? [
           { member: { name: { contains: query } } },
@@ -52,29 +49,22 @@ export async function getMembersAction({
     where: whereCondition,
     take: ITEMS_PER_PAGE,
     skip: (page - 1) * ITEMS_PER_PAGE,
-    include: {
-      member: true,
-      generation: true,
-    },
+    include: { member: true, generation: true },
     orderBy: { generation: { name: "desc" } },
   });
 
   const nextId = members.length === ITEMS_PER_PAGE ? page + 1 : null;
-
-  return {
-    data: members,
-    nextId,
-  };
+  return { data: members, nextId };
 }
 
 export async function getMoreMembersAction(params: GetMembersParams) {
-  const limit = 20; // 한 번에 불러올 데이터 개수
+  const limit = 20;
   const skip = (params.page - 1) * limit;
 
   try {
     const members = await prisma.member.findMany({
       where: {
-        name: { contains: params.q || "" },
+        name: { contains: params.q || "", not: "최고관리자" }, // 최고관리자 제외
         affiliations: {
           some: {
             organization: { deletedAt: null },
@@ -111,6 +101,9 @@ export async function getMoreMembersAction(params: GetMembersParams) {
   }
 }
 
+// ----------------------------------------------------
+// 🌟 단일 회원 생성 액션 (그누보드 연동 적용)
+// ----------------------------------------------------
 export async function createMemberAction(formData: FormData) {
   try {
     const name = formData.get("name") as string;
@@ -119,14 +112,11 @@ export async function createMemberAction(formData: FormData) {
     const password = formData.get("password") as string;
     const organizationId = Number(formData.get("organizationId"));
     const generationId = Number(formData.get("generationId"));
-
-    // 선택 사항
     const positionId = formData.get("positionId")
       ? Number(formData.get("positionId"))
       : null;
     const company = formData.get("company") as string;
 
-    // 1. 필수 값 검증
     if (
       !name ||
       !phone ||
@@ -138,7 +128,6 @@ export async function createMemberAction(formData: FormData) {
       return { success: false, error: "필수 항목을 모두 입력해주세요." };
     }
 
-    // 2. 중복 검사 (전화번호, 아이디)
     const existingMember = await prisma.member.findFirst({
       where: { OR: [{ phone }, { loginId }] },
     });
@@ -150,12 +139,10 @@ export async function createMemberAction(formData: FormData) {
         return { success: false, error: "이미 사용 중인 아이디입니다." };
     }
 
-    // 3. 비밀번호 해싱 (실제 적용 시 bcrypt 사용 권장)
     const hashedPassword = await bcrypt.hash(String(password), 10);
 
-    // 🌟 4. 트랜잭션으로 멤버 생성 및 소속 연결을 동시에 처리
     const newMember = await prisma.$transaction(async (tx) => {
-      // 4-1. Member 생성
+      // 1. 새 앱: Member 생성
       const member = await tx.member.create({
         data: {
           name,
@@ -166,7 +153,7 @@ export async function createMemberAction(formData: FormData) {
         },
       });
 
-      // 4-2. Affiliation (소속) 생성 (관리자가 직접 만드므로 상태는 기본 ACTIVE)
+      // 2. 새 앱: Affiliation 생성
       await tx.affiliation.create({
         data: {
           memberId: member.id,
@@ -178,19 +165,38 @@ export async function createMemberAction(formData: FormData) {
         },
       });
 
+      // 🌟 3. 그누보드 동기화 호출 (어댑터 패턴)
+      const gnuResult = await syncMemberToGnuboard({
+        loginId,
+        rawPassword: password,
+        name,
+      });
+
+      // 동기화 실패 시 에러를 던짐 -> Prisma가 알아서 트랜잭션 전체를 롤백(취소)함!
+      if (!gnuResult.success) {
+        throw new Error(
+          "그누보드 동기화에 실패하여 회원가입이 취소되었습니다."
+        );
+      }
+
       return member;
     });
 
-    // 성공 시 캐시 무효화 (회원 목록 새로고침)
     revalidatePath("/admin/members");
-
     return { success: true, memberId: newMember.id };
-  } catch (error) {
+  } catch (error: any) {
     console.error("[CREATE_MEMBER_ERROR]", error);
-    return { success: false, error: "서버 오류가 발생했습니다." };
+    // 에러 메시지가 커스텀 에러(그누보드 실패)면 해당 메시지를 띄워줌
+    return {
+      success: false,
+      error: error.message || "서버 오류가 발생했습니다.",
+    };
   }
 }
 
+// ----------------------------------------------------
+// 🌟 일괄 회원 생성 액션 (그누보드 연동 적용)
+// ----------------------------------------------------
 export async function bulkCreateMembersAction(
   members: any[],
   organizationId: number,
@@ -203,24 +209,20 @@ export async function bulkCreateMembersAction(
   for (const [index, row] of members.entries()) {
     try {
       const name = row["이름"] || row.name;
-      const rawPhone = row["전화번호"] || row.phone; // 원본 전화번호 (예: 010-1234-5678)
+      const rawPhone = row["전화번호"] || row.phone;
       const password = row["비밀번호"] || row.password;
       const company = row["회사명"] || row.company || null;
       const address = row["주소"] || row.address || null;
 
       if (!name || !rawPhone || !password) {
         failCount++;
-        errors.push(
-          `${index + 2}번째 행: 필수 정보 누락 (이름, 전화번호, 비밀번호)`
-        );
+        errors.push(`${index + 2}번째 행: 필수 정보 누락`);
         continue;
       }
 
-      // 🌟 핵심 로직: 정규식을 사용해 전화번호에서 하이픈 및 숫자가 아닌 모든 문자 제거
       const phone = String(rawPhone).trim();
-      const loginId = phone.replace(/[^0-9]/g, ""); // "010-1234-5678" -> "01012345678"
+      const loginId = phone.replace(/[^0-9]/g, "");
 
-      // 전화번호 또는 아이디 중복 체크
       const existing = await prisma.member.findFirst({
         where: { OR: [{ phone }, { loginId }] },
       });
@@ -232,19 +234,22 @@ export async function bulkCreateMembersAction(
       }
 
       const hashedPassword = await bcrypt.hash(String(password), 10);
-      // 멤버 및 소속 생성
+
+      // 트랜잭션으로 안전하게 묶음
       await prisma.$transaction(async (tx) => {
+        // 1. 멤버 생성
         const newMember = await tx.member.create({
           data: {
             name,
-            phone, // 원본 전화번호 저장 (하이픈 포함 유지)
-            loginId, // 🌟 하이픈이 제거된 번호가 아이디로 저장됨
+            phone,
+            loginId,
             password: hashedPassword,
             company,
             address,
           },
         });
 
+        // 2. 소속 연결
         await tx.affiliation.create({
           data: {
             memberId: newMember.id,
@@ -254,12 +259,27 @@ export async function bulkCreateMembersAction(
             role: "USER",
           },
         });
+
+        // 🌟 3. 그누보드 동기화! (실패 시 이 행(row)의 Prisma DB 생성도 자동 롤백)
+        const gnuResult = await syncMemberToGnuboard({
+          loginId,
+          rawPassword: password,
+          name,
+        });
+
+        if (!gnuResult.success) {
+          throw new Error("그누보드 동기화 실패");
+        }
       });
 
       successCount++;
     } catch (err) {
       failCount++;
-      errors.push(`${row["이름"] || index + 2}행 처리 중 서버 오류`);
+      errors.push(
+        `${
+          row["이름"] || index + 2
+        }행 처리 중 서버 오류 (또는 그누보드 동기화 실패)`
+      );
     }
   }
 
@@ -271,83 +291,4 @@ export async function bulkCreateMembersAction(
     failCount,
     errors,
   };
-}
-
-// src/actions/admin-member-actions.ts 에 추가
-
-export async function bulkDeleteMembersAction(memberIds: number[]) {
-  if (!memberIds || memberIds.length === 0)
-    return { success: false, error: "선택된 회원이 없습니다." };
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      // 1. 삭제할 멤버들의 모든 소속(Affiliation) ID 추출
-      const affiliations = await tx.affiliation.findMany({
-        where: { memberId: { in: memberIds } },
-        select: { id: true },
-      });
-      const affiliationIds = affiliations.map((a) => a.id);
-
-      if (affiliationIds.length > 0) {
-        // 2. 손자 데이터(회비, 인사말) 일괄 삭제
-        await tx.membershipFee.deleteMany({
-          where: { affiliationId: { in: affiliationIds } },
-        });
-        await tx.greeting.deleteMany({
-          where: { affiliationId: { in: affiliationIds } },
-        });
-
-        // 3. 자식 데이터(소속) 일괄 삭제
-        await tx.affiliation.deleteMany({
-          where: { memberId: { in: memberIds } },
-        });
-      }
-
-      // 🌟 [추가된 핵심 로직] 4. Member에 직접 물려있는 인증/디바이스 관련 데이터 싹 지우기!
-      // (Post와 Comment는 스키마에 Cascade가 걸려있어서 안 적어도 알아서 날아갑니다)
-      await tx.refreshToken.deleteMany({
-        where: { memberId: { in: memberIds } },
-      });
-      await tx.loginCode.deleteMany({
-        where: { memberId: { in: memberIds } },
-      });
-      await tx.devicePushToken.deleteMany({
-        where: { memberId: { in: memberIds } },
-      });
-
-      // 5. 드디어 최종 부모 데이터(멤버) 일괄 삭제!
-      await tx.member.deleteMany({
-        where: { id: { in: memberIds } },
-      });
-    });
-
-    revalidatePath("/admin/members");
-    return { success: true };
-  } catch (error) {
-    console.error("[BULK_DELETE_ERROR]", error);
-    return { success: false, error: "일괄 삭제 중 서버 오류가 발생했습니다." };
-  }
-}
-
-export async function bulkApproveMembersAction(memberIds: number[]) {
-  try {
-    // 🌟 선택된 회원의 소속(Affiliation) 상태 중 'PENDING'인 것을 'ACTIVE'로 모두 업데이트
-    await prisma.affiliation.updateMany({
-      where: {
-        memberId: { in: memberIds },
-        status: "PENDING",
-      },
-      data: {
-        status: "ACTIVE",
-      },
-    });
-
-    // 경로 캐시 날리기 (목록 새로고침 용도)
-    revalidatePath("/admin/members"); // 💡 실제 사용하시는 경로에 맞게 수정하세요.
-
-    return { success: true };
-  } catch (error) {
-    console.error("[BULK_APPROVE_ERROR]", error);
-    return { success: false, error: "일괄 승인 처리 중 오류가 발생했습니다." };
-  }
 }
