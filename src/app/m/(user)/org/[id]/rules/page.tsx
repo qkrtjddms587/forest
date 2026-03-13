@@ -18,7 +18,7 @@ const BYLAWS_DATA = {
           id: 1,
           title: "제1조 (명칭)",
           content: [
-            "본 회는 '정치 연수원 3기 동기회'(이하 '본 회'라 한다)라 칭한다.",
+            "본 회는 '사단법인 한국삼림보호협회'(이하 '본 회'라 한다)라 칭한다.",
           ],
         },
         {
@@ -223,7 +223,7 @@ export default async function BylawsPage({ params }: Props) {
                   위 회칙은 2026년 1월 1일 정기총회에서 의결되었습니다.
                 </p>
                 <div className="mt-4 inline-flex items-center gap-2 text-slate-800 font-bold border-b-2 border-slate-800 pb-1">
-                  <span>회장 신 은 비</span>
+                  <span>회장 허 태 조</span>
                   <span className="text-red-600 text-xs border border-red-600 px-0.5 ml-1">
                     인
                   </span>

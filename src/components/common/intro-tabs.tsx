@@ -29,7 +29,7 @@ export function IntroTabs({ orgId, currentTab }: IntroTabsProps) {
               href={tab.href}
               className={`whitespace-nowrap px-4 py-3 font-bold text-base transition-colors ${
                 isActive
-                  ? "text-red-600 border-b-2 border-red-600"
+                  ? "text-brand-main border-b-2 border-brand-main"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
