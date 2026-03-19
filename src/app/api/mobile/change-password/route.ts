@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     const token = authHeader.split(" ")[1];
 
-    // 2. 토큰 검증 및 payload에서 유저 식별자(sub) 추출
+    // 2. 토큰 검증 및 payload에서 유저 식별자 추출
     let payload;
     try {
       payload = await verifyAccessToken(token);
@@ -27,10 +27,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // signAccessToken({ sub: String(member.id) }) 로 구웠으니 id는 payload.sub 에 있습니다.
     const memberId = Number(payload.sub);
 
-    // 3. 바디에서 새 비밀번호만 받기 (기존 비밀번호 생략!)
+    // 3. 바디에서 새 비밀번호 받기
     const body = await req.json();
     const { newPassword } = body;
 
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. 유저 및 가입 상태(PENDING) 조회
+    // 4. 유저 및 가입 상태 조회
     const member = await prisma.member.findUnique({
       where: { id: memberId },
       include: { affiliations: true },
@@ -54,32 +53,38 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🌟 5. PENDING 상태인지 확실하게 검증 (보안)
-    const isPending = member.affiliations.some(
-      (aff) => aff.status === "PENDING"
-    );
-    if (!isPending) {
+    // 🌟 5. 첫 번째(index 0) 가입 정보가 PENDING인지 검증
+    const firstAffiliation = member.affiliations[0];
+
+    if (!firstAffiliation || firstAffiliation.status !== "PENDING") {
       return NextResponse.json(
         {
           success: false,
-          message: "승인 대기(PENDING) 상태의 회원만 이용할 수 있습니다.",
+          message: "승인 대기(PENDING) 상태의 가입 정보가 없습니다.",
         },
         { status: 403 }
       );
     }
 
-    // 6. 묻지도 따지지도 않고 새 비밀번호 강력 암호화!
+    // 6. 새 비밀번호 강력 암호화
     const hashedNewPassword = await bcrypt.hash(String(newPassword), 10);
 
-    // 7. DB 업데이트
-    await prisma.member.update({
-      where: { id: memberId },
-      data: { password: hashedNewPassword },
-    });
+    // 🌟 7. DB 업데이트 (member 비밀번호 변경 + 정확히 index 0번의 affiliation만 ACTIVE로 변경)
+    await prisma.$transaction([
+      prisma.member.update({
+        where: { id: memberId },
+        data: { password: hashedNewPassword },
+      }),
+      prisma.affiliation.update({
+        where: { id: firstAffiliation.id }, // 👈 index 0번의 고유 ID로 콕 집어서 업데이트!
+        data: { status: "ACTIVE" },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      message: "비밀번호가 성공적으로 설정되었습니다.",
+      message:
+        "비밀번호가 성공적으로 설정되었으며, 정식 회원으로 활성화되었습니다.",
     });
   } catch (error) {
     console.error("[INIT_PASSWORD_ERROR]", error);
