@@ -6,7 +6,6 @@ import { randomToken, sha256, signAccessToken } from "@/lib/auth/tokens";
 const REFRESH_DAYS = 90;
 
 export async function POST(req: Request) {
-  // 🌟 1. 전체 로직을 try...catch로 감쌉니다!
   try {
     const body = await req.json();
     const { loginId, password, deviceId, userAgent } = body;
@@ -18,9 +17,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 유저 조회
+    // 🌟 1. 유저 조회 시, affiliations(가입 정보)도 함께 가져옵니다!
     const member = await prisma.member.findUnique({
       where: { loginId: String(loginId) },
+      include: {
+        affiliations: true, // 가입된 단체/기수 정보 모두 포함
+      },
     });
 
     if (!member) {
@@ -30,7 +32,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🌟 2. 비밀번호가 없는 유저(소셜 로그인 등) 예외 처리
     if (!member.password) {
       return NextResponse.json(
         { success: false, message: "비밀번호가 설정되지 않은 계정입니다." },
@@ -64,18 +65,30 @@ export async function POST(req: Request) {
       },
     });
 
+    // 🌟 2. 클라이언트에게 내려줄 status 값을 결정합니다.
+    // (보통 주 단체(isPrimary=true)의 상태를 내려주거나, 가장 첫 번째 가입 정보의 상태를 내려줍니다.)
+    const primaryAffiliation =
+      member.affiliations.find((aff) => aff.isPrimary) ||
+      member.affiliations[0];
+
+    // 가입 정보가 아예 없다면 "NONE" 같은 기본값을 줄 수 있습니다.
+    const affStatus = primaryAffiliation ? primaryAffiliation.status : "NONE";
+
     // 성공 응답
     return NextResponse.json({
       success: true,
       accessToken,
       refreshToken,
-      member: { id: member.id, name: member.name, loginId: member.loginId },
+      member: {
+        id: member.id,
+        name: member.name,
+        loginId: member.loginId,
+        affStatus: affStatus, // 👈 가입 상태 정보 추가!
+      },
     });
   } catch (error) {
-    // 🌟 3. 에러가 나면 서버가 죽지 않고, 콘솔에 원인을 친절하게 찍어줍니다.
     console.error("[LOGIN_API_ERROR]", error);
 
-    // 클라이언트(앱)에게는 JSON 형태로 500 에러를 내려줍니다.
     return NextResponse.json(
       { success: false, message: "서버 내부 오류가 발생했습니다." },
       { status: 500 }

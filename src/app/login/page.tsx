@@ -14,7 +14,7 @@ export default async function LoginPage() {
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2 h-12">
             <TabsTrigger value="login">로그인</TabsTrigger>
-            <TabsTrigger value="register">회원가입</TabsTrigger>
+            {/* <TabsTrigger value="register">회원가입</TabsTrigger> */}
           </TabsList>
           <TabsContent value="login">
             <LoginForm />
