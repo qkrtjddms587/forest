@@ -23,6 +23,7 @@ import {
   Building,
   Briefcase,
   UserCog,
+  Key, // 🌟 Key 아이콘 추가
 } from "lucide-react";
 import { toast } from "sonner";
 import { updateMemberAction } from "@/actions/admin-action";
@@ -30,30 +31,37 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 
 export function MemberDetailSheet({
-  affiliation,
+  member,
   children,
 }: {
-  affiliation: any;
+  member: any;
   children: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const { member, organization, generation } = affiliation;
 
-  // 수정용 로컬 상태
+  // 🌟 아까 발생했던 에러 방지용 방어막!
+  if (!member) return null;
+
+  const { affiliations } = member;
+  const affiliation = affiliations[0];
+  const { organization, generation } = affiliation;
+
+  // 수정용 로컬 상태 (연락처 제외, 비밀번호 추가)
   const [editForm, setEditForm] = useState({
     name: member.name,
-    phone: member.phone,
     company: member.company || "",
     job: member.job || "",
-    position: affiliation.position || "",
+    newPassword: "", // 🌟 새 비밀번호 상태 추가
   });
 
   const handleSave = async () => {
+    // 🌟 서버 액션으로 전송
     const result = await updateMemberAction(member.id, editForm);
     if (result.success) {
-      toast.success("정보가 수정되었습니다.");
+      toast.success("정보가 성공적으로 수정되었습니다.");
       setIsEditing(false); // 수정 모드 종료
+      setEditForm((prev) => ({ ...prev, newPassword: "" })); // 🌟 저장 완료 후 비밀번호 입력창 초기화
     } else {
       toast.error(result.error);
     }
@@ -64,7 +72,10 @@ export function MemberDetailSheet({
       open={isOpen}
       onOpenChange={(open) => {
         setIsOpen(open);
-        if (!open) setIsEditing(false); // Sheet 닫을 때 편집 모드 초기화
+        if (!open) {
+          setIsEditing(false); // Sheet 닫을 때 편집 모드 초기화
+          setEditForm((prev) => ({ ...prev, newPassword: "" })); // 비밀번호 입력창도 초기화
+        }
       }}
     >
       <SheetTrigger asChild>{children}</SheetTrigger>
@@ -138,7 +149,7 @@ export function MemberDetailSheet({
             {/* 기본 정보 섹션 */}
             <div className="grid gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-500">이름</Label>
+                <Label className="text-slate-500 text-xs">이름</Label>
                 <Input
                   disabled={!isEditing}
                   value={editForm.name}
@@ -150,55 +161,52 @@ export function MemberDetailSheet({
                   }
                 />
               </div>
+
+              {/* 🌟 수정 불가: 연락처 */}
               <div className="space-y-2">
-                <Label className="text-slate-500 text-xs">연락처</Label>
+                <Label className="text-slate-500 text-xs">
+                  연락처 (수정 불가)
+                </Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 w-3 h-3 text-slate-400" />
                   <Input
-                    disabled={!isEditing}
-                    value={editForm.phone}
-                    className={`pl-9 ${
-                      !isEditing ? "bg-slate-50 border-none" : "border-blue-200"
-                    }`}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, phone: e.target.value })
-                    }
+                    disabled={true}
+                    value={member.phone} // editForm 대신 원본 데이터 사용
+                    className="pl-9 bg-slate-50 border-none text-slate-500 cursor-not-allowed"
                   />
                 </div>
               </div>
-            </div>
 
-            <Separator />
-
-            {/* 중요: 기수 내 직책 (Position) */}
-            <div
-              className={`p-4 rounded-xl border transition-colors ${
-                isEditing
-                  ? "bg-blue-50 border-blue-200"
-                  : "bg-slate-50 border-transparent"
-              }`}
-            >
-              <Label className="text-blue-600 font-bold text-xs uppercase mb-2 block">
-                임명 직책 (Position)
-              </Label>
-              <Input
-                disabled={!isEditing}
-                placeholder="예: 회장, 사무국장"
-                value={editForm.position}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, position: e.target.value })
-                }
-                className={
-                  isEditing
-                    ? "bg-white border-blue-300"
-                    : "bg-transparent border-none font-semibold text-slate-700 p-0 h-auto text-lg"
-                }
-              />
-              {isEditing && (
-                <p className="text-[10px] text-blue-400 mt-2 italic">
-                  * '회장' 입력 시 인사말 관리 대상이 됩니다.
-                </p>
-              )}
+              {/* 🌟 새로 추가됨: 비밀번호 변경 */}
+              <div className="space-y-2">
+                <Label className="text-slate-500 text-xs">비밀번호 변경</Label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-3 w-3 h-3 text-slate-400" />
+                  <Input
+                    type="password"
+                    disabled={!isEditing}
+                    placeholder={
+                      isEditing
+                        ? "변경할 비밀번호 입력 (공백 시 유지)"
+                        : "********"
+                    }
+                    value={!isEditing ? "" : editForm.newPassword}
+                    className={`pl-9 ${
+                      !isEditing
+                        ? "bg-slate-50 border-none"
+                        : "border-blue-200 placeholder:text-blue-300"
+                    }`}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, newPassword: e.target.value })
+                    }
+                  />
+                </div>
+                {isEditing && (
+                  <p className="text-[10px] text-slate-400 ml-1">
+                    * 비밀번호를 변경하지 않으려면 비워두세요.
+                  </p>
+                )}
+              </div>
             </div>
 
             <Separator />
@@ -206,7 +214,7 @@ export function MemberDetailSheet({
             {/* 사회 정보 */}
             <div className="grid gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-500">회사 / 소속</Label>
+                <Label className="text-slate-500 text-xs">회사 / 소속</Label>
                 <div className="relative">
                   <Building className="absolute left-3 top-3 w-3 h-3 text-slate-400" />
                   <Input
@@ -222,7 +230,7 @@ export function MemberDetailSheet({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-500">직함</Label>
+                <Label className="text-slate-500 text-xs">직종</Label>
                 <div className="relative">
                   <Briefcase className="absolute left-3 top-3 w-3 h-3 text-slate-400" />
                   <Input
@@ -241,7 +249,7 @@ export function MemberDetailSheet({
           </div>
         </div>
 
-        <SheetFooter className="absolute bottom-0 w-full p-4 bg-white border-t">
+        <SheetFooter className="absolute bottom-0 w-full p-4 bg-white border-t z-10">
           {isEditing ? (
             <Button
               onClick={handleSave}

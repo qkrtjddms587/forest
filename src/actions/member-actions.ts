@@ -28,7 +28,7 @@ export async function getMembersAction({
 
   const whereCondition = {
     organizationId: orgId,
-    status: "ACTIVE" as const,
+    // status: "ACTIVE" as const,
 
     // 🌟 핵심 추가: 연결된 member의 이름이 '최고관리자'가 아닌 것만 필터링!
     member: {

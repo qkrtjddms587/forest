@@ -43,6 +43,11 @@ export function MemberCard({
     return phoneStr.replace(/^(\d{2,3})-?(\d{3,4})-?(\d{4})$/, "$1-****-$3");
   };
 
+  const formatAddress = (address: string | null) => {
+    if (!address) return "";
+    return address.trim().split(/\s+/).slice(0, 2).join(" ");
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-4">
       {/* 1. 좌측 프로필 이미지 */}
@@ -80,7 +85,9 @@ export function MemberCard({
             {company}
           </div>
           {address && (
-            <p className="mt-1 text-xs text-slate-400 truncate">{address}</p>
+            <p className="mt-1 text-xs text-slate-400 truncate">
+              {formatAddress(address)}
+            </p>
           )}
         </div>
 

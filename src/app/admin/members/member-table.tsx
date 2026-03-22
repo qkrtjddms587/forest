@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { MemberDetailSheet } from "@/components/admin/member-detail-sheet";
+import { MemberDetailSheet } from "@/components/admin/member-detail-sheet-v2";
 import { Trash2, Loader2, CheckCircle } from "lucide-react"; // 🌟 CheckCircle 아이콘 추가
 import {
   bulkDeleteMembersAction,
@@ -215,7 +215,6 @@ export function MemberTable({
           <TableBody>
             {members.map((member, index) => {
               const isLastElement = members.length === index + 1;
-
               return (
                 <TableRow
                   key={member.id}

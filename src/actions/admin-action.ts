@@ -1,7 +1,9 @@
 "use server";
 
 import { auth } from "@/auth";
+import { isOrgAdmin } from "@/lib/auth/auth-utils";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -18,14 +20,13 @@ export async function updateMemberAction(
   memberId: number,
   data: {
     name: string;
-    phone: string;
     company?: string;
     job?: string;
-    position?: string;
+    newPassword?: string; // 🌟 프론트에서 넘겨주는 새 비밀번호 필드 추가
   }
 ) {
   try {
-    // 1. 보안 검증: 현재 요청자가 관리자인지 서버에서 재확인
+    // 보안 검증: 현재 요청자가 관리자인지 서버에서 재확인
     const session = await auth();
     const adminId = Number(session?.user?.id);
 
@@ -44,30 +45,33 @@ export async function updateMemberAction(
       return { success: false, error: "관리자 권한이 없습니다." };
     }
 
-    // 2. DB 트랜잭션 실행
-    // Member 테이블과 Affiliation 테이블을 동시에 업데이트합니다.
+    // 🌟 업데이트할 데이터 객체 조립
+    const updateData: any = {
+      name: data.name,
+      company: data.company,
+      job: data.job,
+    };
+
+    // 🌟 프론트에서 넘어온 비밀번호가 비어있지 않으면 강력 암호화해서 업데이트 대상에 추가!
+    if (data.newPassword && data.newPassword.trim() !== "") {
+      updateData.password = await bcrypt.hash(data.newPassword, 10);
+    }
+
+    // DB 업데이트 실행
     await prisma.member.update({
       where: { id: memberId },
-      data: {
-        name: data.name,
-        phone: data.phone,
-        company: data.company,
-        job: data.job,
-      },
+      data: updateData,
     });
-    // (2) Affiliation 내 직책(Position) 업데이트
 
-    // 3. 페이지 데이터 갱신
-    // 관리자 조직 관리 페이지의 데이터를 최신 상태로 캐시를 날려줍니다.
-    revalidatePath("/admin/orgs");
+    // 페이지 데이터 갱신
+    revalidatePath("/admin/member");
 
     return { success: true };
   } catch (error: any) {
     console.error("Member Update Error:", error);
 
-    // P2002는 Prisma의 Unique 제약 조건 위배 에러 (예: 이미 존재하는 전화번호)
     if (error.code === "P2002") {
-      return { success: false, error: "이미 존재하는 전화번호입니다." };
+      return { success: false, error: "이미 존재하는 정보입니다." };
     }
 
     return { success: false, error: "정보 수정 중 서버 오류가 발생했습니다." };
@@ -172,5 +176,63 @@ export async function updateGreeting(
   } catch (error) {
     console.error("Greeting Update Error:", error);
     return { success: false, message: "서버 오류가 발생했습니다." };
+  }
+}
+
+export async function adminResetPasswordAction(
+  orgId: number,
+  targetMemberId: number,
+  newPassword: string
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) throw new Error("로그인이 필요합니다.");
+
+    // 🌟 1. 권한 체크: 호출한 사람이 이 단체의 관리자가 맞는지 확인
+    if (!isOrgAdmin(session.user, orgId)) {
+      return { success: false, error: "관리자 권한이 없습니다." };
+    }
+
+    // 🌟 2. 타겟 유저 검증: 이 유저가 우리 단체 소속이 맞는지 확인 (해킹 방어)
+    const targetAffiliation = await prisma.affiliation.findFirst({
+      where: {
+        memberId: targetMemberId,
+        organizationId: orgId,
+      },
+    });
+
+    if (!targetAffiliation) {
+      return { success: false, error: "해당 회원은 이 단체 소속이 아닙니다." };
+    }
+
+    // 🌟 3. 새 비밀번호 강력 암호화
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // 🌟 4. DB 업데이트 (트랜잭션)
+    // 비밀번호를 변경하고, 혹시라도 아직 승인 대기(PENDING) 상태였다면 김에 같이 ACTIVE로 활성화시켜 줍니다.
+    await prisma.$transaction(async (tx) => {
+      await tx.member.update({
+        where: { id: targetMemberId },
+        data: { password: hashedNewPassword },
+      });
+
+      if (targetAffiliation.status === "ACTIVE") {
+        await tx.affiliation.update({
+          where: { id: targetAffiliation.id },
+          data: { status: "PENDING" },
+        });
+      }
+    });
+
+    // 🌟 5. 관리자 회원 관리 페이지의 캐시를 날려서 변경된 상태(ACTIVE 등)가 즉시 반영되게 함
+    revalidatePath(`/m/org/${orgId}/admin/members`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[ADMIN_RESET_PASSWORD_ERROR]", error);
+    return {
+      success: false,
+      error: "비밀번호 초기화 중 서버 오류가 발생했습니다.",
+    };
   }
 }
