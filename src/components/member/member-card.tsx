@@ -47,7 +47,6 @@ export function MemberCard({
     if (!address) return "";
     return address.trim().split(/\s+/).slice(0, 2).join(" ");
   };
-  console.log(position);
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-4">
       {/* 1. 좌측 프로필 이미지 */}
