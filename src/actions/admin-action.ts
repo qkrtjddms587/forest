@@ -19,10 +19,11 @@ const UpdateSchema = z.object({
 export async function updateMemberAction(
   memberId: number,
   data: {
-    name: string;
     company?: string;
     job?: string;
-    newPassword?: string; // 🌟 프론트에서 넘겨주는 새 비밀번호 필드 추가
+    newPassword?: string;
+    address?: string;
+    image?: string; // 🌟 프론트에서 넘겨주는 이미지 URL 필드 추가
   }
 ) {
   try {
@@ -47,9 +48,10 @@ export async function updateMemberAction(
 
     // 🌟 업데이트할 데이터 객체 조립
     const updateData: any = {
-      name: data.name,
       company: data.company,
       job: data.job,
+      address: data.address,
+      image: data.image, // 🌟 이미지 URL 추가! (새 사진이 없어서 undefined로 넘어오면 DB 업데이트 시 무시됨)
     };
 
     // 🌟 프론트에서 넘어온 비밀번호가 비어있지 않으면 강력 암호화해서 업데이트 대상에 추가!
