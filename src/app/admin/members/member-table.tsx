@@ -17,7 +17,7 @@ import { Trash2, Loader2, CheckCircle } from "lucide-react"; // 🌟 CheckCircle
 import {
   bulkDeleteMembersAction,
   getMoreMembersAction,
-  bulkApproveMembersAction, // 🌟 새로 만든 서버 액션 임포트
+  bulkApproveMembersAction,
 } from "@/actions/member-actions";
 
 interface MemberTableProps {

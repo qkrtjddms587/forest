@@ -47,12 +47,12 @@ export function MemberCard({
     if (!address) return "";
     return address.trim().split(/\s+/).slice(0, 2).join(" ");
   };
-
+  console.log(position);
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-4">
       {/* 1. 좌측 프로필 이미지 */}
       <div className="shrink-0">
-        <Avatar className="w-20 h-24 rounded-lg border bg-slate-50">
+        <Avatar className="w-24 h-30 rounded-lg border bg-slate-50">
           <AvatarImage
             src={`${process.env.NEXT_PUBLIC_S3_DOMAIN}/${process.env.NEXT_PUBLIC_S3_BUCKET}${imageUrl}`}
             className="object-cover"
@@ -68,8 +68,8 @@ export function MemberCard({
         {/* 상단 정보 */}
         <div>
           {position && (
-            <p className="text-brand-main font-bold text-sm mb-0.5">
-              {position}
+            <p className="text-brand-main font-bold text-md mb-0.5">
+              {generation} {position}
             </p>
           )}
 

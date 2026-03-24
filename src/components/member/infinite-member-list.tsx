@@ -62,7 +62,7 @@ export function InfiniteMemberList({
 
   // React Query 데이터는 pages 배열 안에 data가 들어있는 구조라 평탄화(flatMap) 필요
   const allMembers = data?.pages.flatMap((page) => page.data) || [];
-
+  console.log(allMembers);
   return (
     <div className="space-y-3 pb-4">
       {allMembers.map((aff) => (
@@ -76,6 +76,7 @@ export function InfiniteMemberList({
           phone={aff.member.phone}
           generation={aff.generation.name}
           imageUrl={aff.member.image || undefined}
+          position={aff.Position ? aff.Position.name : undefined}
         />
       ))}
 

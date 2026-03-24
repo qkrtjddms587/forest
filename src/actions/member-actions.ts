@@ -55,6 +55,7 @@ export async function getMembersAction({
     include: {
       member: true,
       generation: true,
+      Position: true,
     },
     orderBy: { generation: { name: "desc" } },
   });
