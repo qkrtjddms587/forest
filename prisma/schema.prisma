@@ -64,6 +64,9 @@ model Member {
   RefreshToken    RefreshToken[]
   LoginCode       LoginCode[]
   DevicePushToken DevicePushToken[]
+
+  blocking  Block[] @relation("Blocking") // 내가 차단한 사람들
+  blockedBy Block[] @relation("BlockedBy") // 나를 차단한 사람들
 }
 
 // 4. 가입 정보 (중간 테이블)
@@ -284,4 +287,20 @@ model Banner {
 
   @@index([organizationId])
   @@index([isActive])
+}
+
+model Block {
+  id Int @id @default(autoincrement())
+
+  blockerId Int // 차단하는 사람 (나)
+  blockedId Int // 차단당하는 사람 (상대방)
+
+  // 관계 설정 (onDelete: Cascade를 넣어 회원이 탈퇴하면 차단 내역도 지워지게 함)
+  blocker Member @relation("Blocking", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked Member @relation("BlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId]) // 중복 차단 방지
+  @@index([blockerId]) // "내가 차단한 목록"을 빠르게 찾기 위함
 }

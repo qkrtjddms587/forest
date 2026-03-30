@@ -2,9 +2,9 @@
 
 import { auth } from "@/auth";
 import { isContentOwner, isOrgAdmin } from "@/lib/auth/auth-utils";
+import { findBadWord } from "@/lib/filter";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 // 1. 게시글 작성
 export async function createPostAction(formData: FormData, orgId: number) {
@@ -22,6 +22,15 @@ export async function createPostAction(formData: FormData, orgId: number) {
     if (!title || !content)
       return { success: false, error: "제목과 내용을 입력해주세요." };
 
+    const caughtWord = findBadWord(title) || findBadWord(content);
+
+    // 금칙어가 발견되었다면 해당 단어를 에러 메시지에 포함하여 리턴
+    if (caughtWord) {
+      return {
+        success: false,
+        error: `[${caughtWord}] 단어는 커뮤니티 가이드라인에 따라 사용할 수 없습니다.`,
+      };
+    }
     // DB에 게시글 저장 및 이미지 URL 연결
     const post = await prisma.post.create({
       data: {
@@ -103,6 +112,16 @@ export async function updatePostAction(
 
     if (!title || !content) {
       return { success: false, error: "제목과 내용을 입력해주세요." };
+    }
+
+    const caughtWord = findBadWord(title) || findBadWord(content);
+
+    // 금칙어가 발견되었다면 해당 단어를 에러 메시지에 포함하여 리턴
+    if (caughtWord) {
+      return {
+        success: false,
+        error: `[${caughtWord}] 단어는 커뮤니티 가이드라인에 따라 사용할 수 없습니다.`,
+      };
     }
 
     // 🌟 프론트에서 넘겨준 이미지 분리 추출 및 병합
