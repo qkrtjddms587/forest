@@ -67,15 +67,18 @@ export default async function UserOrgChartPage({
   };
 
   // 3-3. 층수(depth)를 기준으로 직책들을 그룹화합니다.
-  const depthGroups = positionsWithMembers.reduce((acc, pos) => {
-    // if (pos.affiliations.length === 0) return acc; // 사람 없는 직책은 화면에서 숨김
+  const depthGroups = positionsWithMembers.reduce(
+    (acc, pos) => {
+      // if (pos.affiliations.length === 0) return acc; // 사람 없는 직책은 화면에서 숨김
 
-    const depth = getDepth(pos.parentId); // 🌟 여기가 핵심!
+      const depth = getDepth(pos.parentId); // 🌟 여기가 핵심!
 
-    if (!acc[depth]) acc[depth] = [];
-    acc[depth].push(pos);
-    return acc;
-  }, {} as Record<number, typeof positionsWithMembers>);
+      if (!acc[depth]) acc[depth] = [];
+      acc[depth].push(pos);
+      return acc;
+    },
+    {} as Record<number, typeof positionsWithMembers>,
+  );
 
   // 0층, 1층, 2층 순서대로 배열 생성
   const sortedDepths = Object.keys(depthGroups)

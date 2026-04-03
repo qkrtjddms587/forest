@@ -7,6 +7,7 @@ import { format } from "date-fns";
 // 🌟 탭 메뉴 정의
 const TABS = [
   { label: "공지사항", value: "NOTICE" },
+  { label: "자유게시판", value: "FREE" },
   { label: "갤러리", value: "GALLERY" },
   { label: "홍보", value: "ADS" },
   { label: "행사일정", value: "EVENT" },
