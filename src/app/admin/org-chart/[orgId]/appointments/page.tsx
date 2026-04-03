@@ -34,7 +34,6 @@ export default async function AppointmentsPage({
     where: {
       organizationId: Number(orgId),
       generationId: currentGenId,
-      status: "ACTIVE",
     },
     include: { member: true, generation: true, Position: true },
     orderBy: { member: { name: "asc" } },

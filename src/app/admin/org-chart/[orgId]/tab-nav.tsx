@@ -2,17 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings2, UserPlus, Megaphone, ImageIcon } from "lucide-react";
+import {
+  Settings2,
+  UserPlus,
+  Megaphone,
+  ImageIcon,
+  FileText,
+} from "lucide-react";
 
 export function TabNavigation({ orgId }: { orgId: string }) {
   const pathname = usePathname();
 
   const tabs = [
-    { name: "직책 세팅", href: `/admin/org-chart/${orgId}`, icon: Settings2 },
     {
-      name: "회원 임명",
-      href: `/admin/org-chart/${orgId}/appointments`,
-      icon: UserPlus,
+      name: "게시글 관리", // 🌟 게시글 관리 탭 추가
+      href: `/admin/org-chart/${orgId}/posts`,
+      icon: FileText,
     },
     {
       name: "인사말 관리",
@@ -24,6 +29,12 @@ export function TabNavigation({ orgId }: { orgId: string }) {
       href: `/admin/org-chart/${orgId}/banners`, // 실제 라우터 경로에 맞게 수정 필요 시 수정
       icon: ImageIcon,
     },
+    {
+      name: "회원 임명",
+      href: `/admin/org-chart/${orgId}/appointments`,
+      icon: UserPlus,
+    },
+    { name: "직책 세팅", href: `/admin/org-chart/${orgId}`, icon: Settings2 },
   ];
 
   return (
@@ -41,7 +52,7 @@ export function TabNavigation({ orgId }: { orgId: string }) {
             href={tab.href}
             className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
               isActive
-                ? "border-slate-900 text-slate-900"
+                ? "border-brand-main text-brand-main"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
             }`}
           >

@@ -18,7 +18,7 @@ export function RoleAssignmentBoard({ positions, members }: Props) {
 
   // 2. 0.3초 뒤에 실제로 필터링에 쓰일 상태
   const [debouncedTerms, setDebouncedTerms] = useState<Record<number, string>>(
-    {}
+    {},
   );
 
   // 🌟 3. 선생님이 쓰신 useDebouncedCallback 그대로 적용!
@@ -26,7 +26,7 @@ export function RoleAssignmentBoard({ positions, members }: Props) {
     (posId: number, term: string) => {
       setDebouncedTerms((prev) => ({ ...prev, [posId]: term }));
     },
-    300
+    300,
   );
 
   // 4. input 창의 onChange 이벤트
@@ -71,7 +71,7 @@ export function RoleAssignmentBoard({ positions, members }: Props) {
                   (m) =>
                     m.positionId !== pos.id && // 이미 이 자리에 있는 사람 제외
                     (m.member.name.includes(term) ||
-                      m.member.phone?.includes(term))
+                      m.member.phone?.includes(term)),
                 )
                 .slice(0, 5) // 너무 많이 뜨지 않게 5명만 자름
             : [];
