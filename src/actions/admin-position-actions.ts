@@ -41,8 +41,8 @@ async function recalculateRanks(generationId: number) {
       prisma.position.update({
         where: { id: update.id },
         data: { rank: update.rank },
-      })
-    )
+      }),
+    ),
   );
 }
 
@@ -116,7 +116,7 @@ export async function deletePositionAction(id: number) {
 
 export async function updateMemberPosition(
   affiliationId: number,
-  positionId: number | null
+  positionId: number | null,
 ) {
   try {
     // 1. Prisma를 이용해 해당 회원의 직책(positionId)을 업데이트합니다.
@@ -128,6 +128,7 @@ export async function updateMemberPosition(
     // 2. Next.js 캐시 무효화 (화면 강제 새로고침)
     // "layout" 옵션을 주면 /admin/org-chart 하위의 모든 탭(직책, 임명 등) 데이터가 싹 새로고침됩니다.
     revalidatePath("/admin/org-chart", "layout");
+    revalidatePath(`/m/org/5/org-chart`);
 
     return { success: true };
   } catch (error) {
