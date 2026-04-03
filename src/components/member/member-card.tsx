@@ -68,7 +68,7 @@ export function MemberCard({
         <div>
           {position && (
             <p className="text-brand-main font-bold text-md mb-0.5">
-              {generation} {position}
+              {position}
             </p>
           )}
 
