@@ -67,6 +67,8 @@ model Member {
 
   blocking  Block[] @relation("Blocking") // 내가 차단한 사람들
   blockedBy Block[] @relation("BlockedBy") // 나를 차단한 사람들
+
+  reports Report[]
 }
 
 // 4. 가입 정보 (중간 테이블)
@@ -139,6 +141,7 @@ model Post {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  reports   Report[]
 
   @@index([organizationId, deletedAt])
   @@index([authorId])
@@ -303,4 +306,22 @@ model Block {
 
   @@unique([blockerId, blockedId]) // 중복 차단 방지
   @@index([blockerId]) // "내가 차단한 목록"을 빠르게 찾기 위함
+}
+
+model Report {
+  id Int @id @default(autoincrement())
+
+  reporterId Int
+  reporter   Member @relation(fields: [reporterId], references: [id])
+
+  postId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  reason String // 신고 사유 (예: "욕설/비방", "광고", "음란물")
+  status String @default("PENDING") // PENDING(대기), RESOLVED(처리완료), REJECTED(반려)
+
+  createdAt DateTime @default(now())
+
+  @@unique([reporterId, postId]) // 🌟 운영급 핵심: 한 사람이 동일한 글을 중복 신고하는 것 방지
+  @@index([postId])
 }

@@ -23,17 +23,33 @@ export default async function CommunityPage({
   const { id } = await params;
   const orgId = Number(id);
   const session = await auth();
+  const currentUserId = Number(session?.user?.id); // 🌟 현재 로그인한 유저 ID
 
   const resolvedSearchParams = await searchParams;
   const currentType = resolvedSearchParams.type || "NOTICE";
   const searchQuery = resolvedSearchParams.q || "";
 
-  // 게시글 조회
+  // 🌟 1. 내가 차단한 유저 ID 목록 가져오기
+  let blockedUserIds: number[] = [];
+  if (currentUserId) {
+    const myBlocks = await prisma.block.findMany({
+      where: { blockerId: currentUserId },
+      select: { blockedId: true },
+    });
+    blockedUserIds = myBlocks.map((b) => b.blockedId);
+  }
+
+  // 🌟 2. 게시글 조회 (차단한 유저의 글 제외 필터 추가)
   const posts = await prisma.post.findMany({
     where: {
       organizationId: orgId,
       type: currentType,
+      deletedAt: null, // 숨김/삭제 처리된 글도 안 보이게 처리 (안전장치)
       ...(searchQuery && { title: { contains: searchQuery } }),
+      // 차단한 유저가 1명이라도 있다면 조건문에 추가!
+      ...(blockedUserIds.length > 0 && {
+        authorId: { notIn: blockedUserIds },
+      }),
     },
     include: {
       author: { select: { name: true } },
@@ -86,7 +102,6 @@ export default async function CommunityPage({
         </form>
 
         {/* 3. 게시글 리스트 영역 */}
-        {/* 🌟 갤러리일 때는 카드 간격(gap-4)을 주고, 아닐 때는 붙여서(border-b로 구분) 렌더링 */}
         <div
           className={`flex flex-col ${
             currentType === "GALLERY" ? "gap-2" : ""
@@ -123,12 +138,10 @@ export default async function CommunityPage({
 
                     {/* 텍스트 영역 (오른쪽) */}
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-                      {/* 제목: 최대 2줄까지만 허용하고 넘어가면 ... 처리 (line-clamp-2) */}
                       <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">
                         {post.title}
                       </h3>
 
-                      {/* 하단 메타: 시안처럼 양끝 정렬 (justify-between) */}
                       <div className="flex justify-between items-center text-xs text-slate-400">
                         <span>{format(post.createdAt, "yy.MM.dd")}</span>
                         <div className="flex items-center gap-1.5">
@@ -156,7 +169,6 @@ export default async function CommunityPage({
                   </h3>
 
                   <div className="flex items-center flex-wrap gap-x-2 text-[13px] text-slate-400">
-                    {/* 작성자가 '관리자'로 하드코딩 되어야 한다면 "관리자"로 수정하셔도 됩니다 */}
                     <span>{post.author.name}</span>
                     <span>{format(post.createdAt, "yyyy.MM.dd")}</span>
                     <span className="text-slate-300">|</span>

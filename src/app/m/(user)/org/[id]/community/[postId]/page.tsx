@@ -22,6 +22,16 @@ export default async function PostDetailPage({
   const { id, postId } = await params;
   const orgId = +id;
   const session = await auth();
+  const currentUserId = Number(session?.user?.id);
+
+  let blockedUserIds: number[] = [];
+  if (currentUserId) {
+    const myBlocks = await prisma.block.findMany({
+      where: { blockerId: currentUserId },
+      select: { blockedId: true },
+    });
+    blockedUserIds = myBlocks.map((b) => b.blockedId);
+  }
 
   // 1. 게시글 가져오기 (대표님 스키마 적용!)
   const post = await prisma.post.findUnique({
@@ -38,6 +48,12 @@ export default async function PostDetailPage({
       },
       images: true, // 🌟 DB의 PostImage[] 데이터를 모두 가져옵니다.
       comments: {
+        where:
+          blockedUserIds.length > 0
+            ? {
+                memberId: { notIn: blockedUserIds },
+              }
+            : undefined,
         include: { member: { select: { name: true, image: true } } },
         orderBy: { createdAt: "asc" },
       },
@@ -45,6 +61,23 @@ export default async function PostDetailPage({
   });
 
   if (!post) notFound();
+
+  if (blockedUserIds.includes(post.authorId)) {
+    return (
+      <div className="max-w-3xl mx-auto p-20 text-center text-slate-500 min-h-[50vh] flex flex-col items-center justify-center">
+        <h2 className="text-xl font-bold mb-2">차단된 게시글입니다</h2>
+        <p className="text-sm">
+          차단한 사용자가 작성한 게시글은 볼 수 없습니다.
+        </p>
+        <Link
+          href={`/m/org/${id}/community`}
+          className="mt-6 px-4 py-2 bg-slate-100 rounded-md text-sm font-medium hover:bg-slate-200"
+        >
+          목록으로 돌아가기
+        </Link>
+      </div>
+    );
+  }
 
   const genName = post.author.affiliations[0].generation.name;
   const positionName = post.author.affiliations[0].Position?.name;
@@ -102,8 +135,10 @@ export default async function PostDetailPage({
           <PostOptionsMenu
             postId={post.id}
             orgId={orgId}
+            authorId={post.authorId}
             canEdit={canEdit}
             canDelete={canDelete}
+            isMine={isOwner}
           />
         </div>
 
