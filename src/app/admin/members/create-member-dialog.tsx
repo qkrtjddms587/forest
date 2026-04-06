@@ -52,7 +52,7 @@ export function CreateMemberDialog({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {/* 리스트 페이지 상단에 들어갈 '회원 추가' 버튼 */}
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button className="bg-brand-main hover:bg-brand-main/80">
           <UserPlus className="w-4 h-4 mr-2" />
           신규 회원 등록
         </Button>

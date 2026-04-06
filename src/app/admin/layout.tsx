@@ -11,14 +11,27 @@ export default async function AdminLayout({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
+  const memberId = Number(session.user.id);
   // 권한 체크
   const myAffiliation = await prisma.affiliation.findFirst({
-    where: { memberId: Number(session.user.id) },
+    where: { memberId },
+    select: { role: true, organizationId: true },
   });
 
+  const isSuperAdmin = myAffiliation?.role == "ADMIN";
+
   // 일반 유저는 접근 금지
-  if (!myAffiliation || myAffiliation.role === "USER") {
-    redirect("/");
+  if (!isSuperAdmin) {
+    // 본인이 소속된 단체 중 MANAGER나 ADMIN 권한이 있는 곳이 하나라도 있는지 확인
+    const isManager = myAffiliation?.role == "ADMIN";
+
+    if (isManager) {
+      // 🌟 단체 매니저라면, 본인이 관리하는 첫 번째 단체의 매니저 홈으로 쫓아냄!
+      redirect(`/manager/${myAffiliation.organizationId}/members`);
+    } else {
+      // 아무 권한도 없는 일반 유저라면 메인(유저) 페이지로 쫓아냄
+      redirect("/");
+    }
   }
 
   return (

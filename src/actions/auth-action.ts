@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -17,13 +17,13 @@ const registerActionSchema = z.object({
       z.object({
         orgId: z.number(),
         genId: z.number(),
-      })
+      }),
     )
     .min(1, "최소 하나의 소속을 선택해야 합니다."),
 });
 
 export async function registerMemberAction(
-  data: z.infer<typeof registerActionSchema>
+  data: z.infer<typeof registerActionSchema>,
 ) {
   try {
     const existingUser = await prisma.member.findFirst({
@@ -111,4 +111,8 @@ export async function setupInitialPasswordAction(formData: FormData) {
     console.error("[SETUP_PASSWORD_ERROR]", error);
     return { success: false, error: "비밀번호 설정 중 오류가 발생했습니다." };
   }
+}
+
+export async function logoutAction() {
+  await signOut({ redirectTo: "/login" });
 }

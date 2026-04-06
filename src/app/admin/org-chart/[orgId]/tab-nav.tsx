@@ -8,12 +8,18 @@ import {
   Megaphone,
   ImageIcon,
   FileText,
+  Users,
 } from "lucide-react";
 
 export function TabNavigation({ orgId }: { orgId: string }) {
   const pathname = usePathname();
 
   const tabs = [
+    {
+      name: "회원 관리", // 🌟 게시글 관리 탭 추가
+      href: `/admin/org-chart/${orgId}/members`,
+      icon: Users,
+    },
     {
       name: "게시글 관리", // 🌟 게시글 관리 탭 추가
       href: `/admin/org-chart/${orgId}/posts`,
