@@ -1,18 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import {
-  Users,
-  MessageSquare,
-  Settings,
-  LogOut,
-  FileText,
-  Image,
-  Megaphone,
-  Crown,
-  Settings2,
-} from "lucide-react";
 import { ManagerSidebar } from "../_components/manager-sidebar";
 
 export default async function ManagerLayout({

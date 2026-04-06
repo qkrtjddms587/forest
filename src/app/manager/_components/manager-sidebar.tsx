@@ -32,11 +32,11 @@ export function ManagerSidebar({ orgId, orgName }: ManagerSidebarProps) {
       label: "인사말 관리",
     },
     {
-      href: `/manager/${orgId}/appointments`,
+      href: `/manager/${orgId}/org-chart`,
       icon: Settings2,
       label: "직책 생성",
     },
-    { href: `/manager/${orgId}/org-chart`, icon: Crown, label: "직책 임명" },
+    { href: `/manager/${orgId}/appointments`, icon: Crown, label: "직책 임명" },
   ];
 
   return (
