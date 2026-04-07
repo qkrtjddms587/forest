@@ -5,6 +5,7 @@ import { isContentOwner, isOrgAdmin } from "@/lib/auth/auth-utils";
 import { findBadWord } from "@/lib/filter";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { sendGroupPushAction } from "./push-actions";
 
 // 1. 게시글 작성
 export async function createPostAction(formData: FormData, orgId: number) {
@@ -50,6 +51,19 @@ export async function createPostAction(formData: FormData, orgId: number) {
         }),
       },
     });
+
+    if (type === "NOTICE") {
+      // 본문이 너무 길면 잘라서 보냄
+      const pushBody =
+        content.length > 40 ? content.substring(0, 40) + "..." : content;
+
+      // await 없이 호출하여 백그라운드에서 실행 (유저의 글쓰기 대기 시간을 늘리지 않음)
+      sendGroupPushAction(orgId, `[공지사항] ${title}`, pushBody, {
+        postId: String(post.id),
+        type: "NOTICE",
+        url: `/m/org/${orgId}/community/${post.id}`, // 딥링크 주소
+      }).catch((error) => console.error("공지사항 푸시 발송 실패:", error));
+    }
 
     // 캐시 날리기
     revalidatePath(`/m/org/${orgId}/community`);
@@ -100,7 +114,7 @@ export async function deletePostAction(postId: number, orgId: number) {
 export async function updatePostAction(
   postId: number,
   orgId: number,
-  formData: FormData
+  formData: FormData,
 ) {
   try {
     const session = await auth();

@@ -10,6 +10,7 @@ import {
   Settings2,
   Crown,
   LogOut,
+  BellRing,
 } from "lucide-react";
 import { logoutAction } from "@/actions/auth-action";
 
@@ -26,6 +27,7 @@ export function ManagerSidebar({ orgId, orgName }: ManagerSidebarProps) {
     { href: `/manager/${orgId}/members`, icon: Users, label: "회원 관리" },
     { href: `/manager/${orgId}/posts`, icon: FileText, label: "게시글 관리" },
     { href: `/manager/${orgId}/banners`, icon: ImageIcon, label: "배너 관리" },
+    { href: `/manager/${orgId}/push`, icon: BellRing, label: "푸시 발송" },
     {
       href: `/manager/${orgId}/greeting`,
       icon: Megaphone,
