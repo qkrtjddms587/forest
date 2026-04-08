@@ -173,7 +173,7 @@ export const paymentClient = {
           event.data && Array.isArray(event.data) && event.data[1]
             ? event.data[1]
             : null;
-        console.log(receiveData);
+
         if (!receiveData) return;
 
         if (receiveData.resultCode === "0000") {

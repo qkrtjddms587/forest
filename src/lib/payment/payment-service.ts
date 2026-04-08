@@ -62,7 +62,7 @@ export const paymentService = {
     const encData = sha256(
       `${params.mid}${params.ediDate}${params.goodsAmt}${merchantKey}`,
     );
-    console.log("encData=" + encData);
+
     const formData = new URLSearchParams({
       tid: params.tid,
       ediDate: params.ediDate,

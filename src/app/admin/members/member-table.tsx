@@ -47,7 +47,11 @@ export function MemberTable({
     setPage(1);
     setHasMore(initialMembers.length === 20);
     setSelectedIds([]);
-  }, [initialMembers, searchParams]);
+
+    // 핵심 방어: searchParams를 JSON 문자열로 바꿔서 비교합니다.
+    // 이렇게 하면 서버 액션(updateMemberAction) 후 initialMembers가 새로 내려와도
+    // 검색 조건이 그대로면 리스트가 1페이지로 날아가지 않습니다!
+  }, [JSON.stringify(searchParams)]);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastMemberElementRef = useCallback(

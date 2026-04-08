@@ -107,7 +107,7 @@ export function PushHistoryList({ orgId }: { orgId: number }) {
           {history.map((item, index) => {
             // 🌟 4. 배열의 마지막 요소인지 확인
             const isLastElement = history.length === index + 1;
-            console.log(item);
+
             return (
               <TableRow
                 key={item.id}
