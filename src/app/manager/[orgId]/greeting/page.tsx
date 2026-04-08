@@ -40,7 +40,7 @@ export default async function GreetingPage({ params, searchParams }: Props) {
   const availableAffiliations = await prisma.affiliation.findMany({
     where: {
       generationId: currentGenId,
-      status: "ACTIVE",
+      Position: { isNot: null },
       greeting: null, // 💡 핵심: Greeting이 없는 사람만 필터링!
     },
     include: {

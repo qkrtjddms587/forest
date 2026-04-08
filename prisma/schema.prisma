@@ -17,9 +17,10 @@ model Organization {
   affiliations Affiliation[]
   createdAt    DateTime      @default(now())
 
-  deletedAt DateTime?
-  Post      Post[]
-  Banner    Banner[]
+  deletedAt     DateTime?
+  Post          Post[]
+  Banner        Banner[]
+  pushHistories PushHistory[]
 }
 
 // 2. 기수 (2뎁스)
@@ -68,7 +69,8 @@ model Member {
   blocking  Block[] @relation("Blocking") // 내가 차단한 사람들
   blockedBy Block[] @relation("BlockedBy") // 나를 차단한 사람들
 
-  reports Report[]
+  reports       Report[]
+  pushHistories PushHistory[]
 }
 
 // 4. 가입 정보 (중간 테이블)
@@ -324,4 +326,30 @@ model Report {
 
   @@unique([reporterId, postId]) // 🌟 운영급 핵심: 한 사람이 동일한 글을 중복 신고하는 것 방지
   @@index([postId])
+}
+
+model PushHistory {
+  id Int @id @default(autoincrement())
+
+  // 누가 발송했는지
+  senderId Int
+  sender   Member @relation(fields: [senderId], references: [id])
+
+  // 특정 단체에 보냈다면 기록 (전체 발송이면 null)
+  organizationId Int?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  // 발송 내용
+  title String
+  body  String
+  link  String? // 딥링크
+
+  // 발송 결과
+  successCount Int @default(0)
+  failCount    Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([senderId])
 }

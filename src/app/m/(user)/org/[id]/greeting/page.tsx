@@ -77,7 +77,7 @@ export default async function UserGreetingPage({
                   <div className="w-48 md:w-64 relative rounded-xl overflow-hidden">
                     {greet.imageUrl ? (
                       <img
-                        src={greet.imageUrl}
+                        src={`${process.env.NEXT_PUBLIC_S3_DOMAIN}/${process.env.NEXT_PUBLIC_S3_BUCKET}${greet.imageUrl}`}
                         alt={`${memberName} 프로필`}
                         className="w-full h-full object-cover"
                       />
@@ -132,7 +132,7 @@ export default async function UserGreetingPage({
                         {greet.signImageUrl && (
                           <div className="w-20 h-20 relative shrink-0 -ml-5">
                             <img
-                              src={greet.signImageUrl}
+                              src={`${process.env.NEXT_PUBLIC_S3_DOMAIN}/${process.env.NEXT_PUBLIC_S3_BUCKET}${greet.signImageUrl}`}
                               alt={`${memberName} 서명`}
                               className="w-full h-full object-contain" // 서명은 잘리지 않게 contain
                             />

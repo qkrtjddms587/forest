@@ -13,7 +13,7 @@ const UpdateSchema = z.object({
   company: z.string().optional(),
   job: z.string().optional(),
   address: z.string().optional(),
-  role: z.enum(["USER", "ADMIN"]),
+  role: z.enum(["USER", "MANAGER", "ADMIN"]).optional(),
 });
 
 export async function updateMemberAction(
@@ -24,7 +24,9 @@ export async function updateMemberAction(
     newPassword?: string;
     address?: string;
     image?: string; // 🌟 프론트에서 넘겨주는 이미지 URL 필드 추가
-  }
+    affiliationId?: number;
+    role?: string;
+  },
 ) {
   try {
     // 보안 검증: 현재 요청자가 관리자인지 서버에서 재확인
@@ -81,7 +83,7 @@ export async function updateMemberAction(
 }
 
 export async function updateMemberInfoAction(
-  data: z.infer<typeof UpdateSchema>
+  data: z.infer<typeof UpdateSchema>,
 ) {
   const session = await auth();
   // ... 권한 체크
@@ -131,7 +133,7 @@ export async function rejectMemberAction(affiliationId: number) {
 
 export async function updateGreeting(
   affiliationId: number,
-  formData: FormData
+  formData: FormData,
 ) {
   try {
     const session = await auth();
@@ -184,7 +186,7 @@ export async function updateGreeting(
 export async function adminResetPasswordAction(
   orgId: number,
   targetMemberId: number,
-  newPassword: string
+  newPassword: string,
 ) {
   try {
     const session = await auth();

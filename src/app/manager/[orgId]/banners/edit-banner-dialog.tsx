@@ -12,11 +12,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Edit2, Trash2, ImageIcon } from "lucide-react";
+import { Loader2, Edit2, Trash2 } from "lucide-react";
 import {
   deleteBannerAction,
   updateBannerAction,
 } from "@/actions/banner-actions";
+import { SingleImageUploader } from "./_components/single-image-uploader";
+// 🌟 방금 만든 단일 이미지 업로더 임포트!
 
 interface BannerProps {
   id: number;
@@ -41,12 +43,14 @@ export function EditBannerDialog({ banner, orgId }: EditBannerDialogProps) {
 
   // 상태 관리
   const [isActive, setIsActive] = useState(banner.isActive);
-  const [imageUrl, setImageUrl] = useState<string>(banner.imageUrl);
+  // 🌟 기존 배너의 imageUrl을 초기 상태로 세팅합니다.
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>(
+    banner.imageUrl,
+  );
 
-  // 날짜 포맷팅 (서버 액션의 new Date()가 인식 가능한 포맷)
+  // 날짜 포맷팅
   const formatDateForInput = (date: Date | null) => {
     if (!date) return "";
-    // UTC 시간을 로컬 datetime-local 포맷으로 변환
     const d = new Date(date);
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
       .toISOString()
@@ -55,18 +59,23 @@ export function EditBannerDialog({ banner, orgId }: EditBannerDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // 🌟 방어 로직: 이미지가 다 지워진 상태로 저장되지 못하게 막습니다.
+    if (!uploadedImageUrl) {
+      alert("배너 이미지를 등록해주세요.");
+      return;
+    }
+
     setIsPending(true);
 
     try {
       const formData = new FormData(e.currentTarget);
 
-      // 스위치 컴포넌트는 폼 데이터에 자동으로 담기지 않으므로 수동 추가
-      // 서버 액션의 (isActiveValue === "true") 로직과 매칭됨
       formData.append("isActive", isActive.toString());
-
-      // 배너 ID 및 이미지 URL 명시적 추가
       formData.append("bannerId", banner.id.toString());
-      formData.append("imageUrl", imageUrl);
+
+      // 🌟 상태에 있는 이미지 URL을 폼데이터에 심어줍니다.
+      formData.append("imageUrl", uploadedImageUrl);
 
       const result = await updateBannerAction(formData);
 
@@ -101,8 +110,18 @@ export function EditBannerDialog({ banner, orgId }: EditBannerDialogProps) {
     }
   };
 
+  // 🌟 모달이 열리고 닫힐 때, 데이터가 꼬이지 않도록 초기화해줍니다.
+  const handleOpenChange = (newOpen: boolean) => {
+    setIsOpen(newOpen);
+    if (!newOpen) {
+      // 닫힐 때는 원본 이미지로 되돌려놓음 (수정하다가 취소했을 경우를 대비)
+      setUploadedImageUrl(banner.imageUrl);
+      setIsActive(banner.isActive);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -119,7 +138,6 @@ export function EditBannerDialog({ banner, orgId }: EditBannerDialogProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          {/* 🌟 서버 액션에 필요한 Hidden 필드 보강 */}
           <input type="hidden" name="organizationId" value={orgId} />
           <input
             type="hidden"
@@ -133,35 +151,15 @@ export function EditBannerDialog({ banner, orgId }: EditBannerDialogProps) {
           </div>
 
           <div className="space-y-4">
-            {/* 이미지 URL 입력 및 실시간 미리보기 */}
+            {/* 🌟 텍스트 URL 입력창을 지우고 업로더 장착! */}
             <div className="space-y-2">
-              <Label>이미지 URL</Label>
-              <Input
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                required
+              <Label>
+                배너 이미지 <span className="text-red-500">*</span>
+              </Label>
+              <SingleImageUploader
+                imageUrl={uploadedImageUrl}
+                onUploadComplete={setUploadedImageUrl}
               />
-              <div className="mt-2 w-full h-32 rounded-md border bg-slate-50 flex items-center justify-center overflow-hidden border-dashed">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.currentTarget.src = ""; // 이미지 로드 실패 시 초기화
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center text-slate-400">
-                    <ImageIcon className="w-8 h-8 mb-1" />
-                    <span className="text-xs">
-                      올바른 이미지 URL을 입력하세요
-                    </span>
-                  </div>
-                )}
-              </div>
             </div>
 
             <div className="space-y-2">
@@ -231,13 +229,13 @@ export function EditBannerDialog({ banner, orgId }: EditBannerDialogProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsOpen(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 취소
               </Button>
               <Button
                 type="submit"
-                className="bg-brand-main"
+                className="bg-brand-main text-white hover:bg-brand-main/90"
                 disabled={isPending || isDeleting}
               >
                 {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}

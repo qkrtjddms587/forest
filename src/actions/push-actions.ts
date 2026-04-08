@@ -17,6 +17,7 @@ export async function sendAdminPushAction(formData: FormData) {
     const title = formData.get("title") as string;
     const body = formData.get("body") as string;
     const link = formData.get("link") as string; // 푸시 클릭 시 이동할 URL
+    const orgId = formData.get("orgId") as string;
 
     if (!title || !body) {
       return { success: false, message: "제목과 내용을 모두 입력해주세요." };
@@ -116,12 +117,18 @@ export async function sendGroupPushAction(
     // 🌟 5. 팀장님의 messaging 객체로 시원하게 발송!
     const response = await messaging.sendEachForMulticast(message);
 
-    console.log(uniqueTokens);
-    console.log(message);
-    console.log(response);
-    console.log(
-      `[FCM 발송 결과] 성공: ${response.successCount}건, 실패: ${response.failureCount}건`,
-    );
+    await prisma.pushHistory.create({
+      data: {
+        senderId: Number(session.user.id), // 발송자 ID
+        title,
+        body,
+        link: data.url,
+        // 전체 발송이면 null, 단체 발송이면 orgId
+        organizationId: orgId ? Number(orgId) : null,
+        successCount: response.successCount,
+        failCount: response.failureCount,
+      },
+    });
 
     // 6. 만료된 좀비 토큰 DB 청소 로직
     if (response.failureCount > 0) {
@@ -155,5 +162,26 @@ export async function sendGroupPushAction(
   } catch (error) {
     console.error("FCM 푸시 발송 에러:", error);
     return { success: false, error: "푸시 발송 중 서버 오류가 발생했습니다." };
+  }
+}
+
+export async function getPushHistoryAction(orgId: number, page: number = 0) {
+  const pageSize = 10; // 한 번에 10개씩 가져옴
+
+  try {
+    const history = await prisma.pushHistory.findMany({
+      where: { organizationId: orgId },
+      include: {
+        sender: { select: { name: true } }, // 발송자 이름 포함
+      },
+      orderBy: { createdAt: "desc" },
+      skip: page * pageSize,
+      take: pageSize,
+    });
+
+    return { success: true, data: history };
+  } catch (error) {
+    console.error("히스토리 조회 에러:", error);
+    return { success: false, data: [] };
   }
 }

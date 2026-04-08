@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { saveGreeting, deleteGreeting } from "@/actions/greeting-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,10 @@ import {
   XCircle,
   ImageIcon,
   PenTool,
+  Search, // 🌟 추가
+  Check, // 🌟 추가
 } from "lucide-react";
+import { SingleImageUploader } from "../banners/_components/single-image-uploader";
 
 type Affiliation = {
   id: number;
@@ -42,13 +45,12 @@ type Greeting = {
 
 interface Props {
   greetings: Greeting[];
-  availableAffiliations: Affiliation[]; // 아직 인사말이 없는 임원 목록
+  availableAffiliations: Affiliation[];
 }
 
 export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
   const [isPending, startTransition] = useTransition();
 
-  // 모달 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGreeting, setEditingGreeting] = useState<Greeting | null>(null);
 
@@ -61,12 +63,26 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
   const [isActive, setIsActive] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
 
-  // 🌟 모달 열기 (생성 vs 수정)
+  // 🌟 검색형 드롭다운을 위한 상태 추가
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // 🌟 검색어 기반으로 임원 목록 필터링
+  const filteredAffiliations = availableAffiliations.filter(
+    (aff) =>
+      aff.member.name.includes(searchQuery) ||
+      (aff.Position?.name || "일반회원").includes(searchQuery),
+  );
+
+  // 모달 열기 초기화
   const openModal = (greeting?: Greeting) => {
     if (greeting) {
-      // 수정 모드: 기존 데이터 채우기
       setEditingGreeting(greeting);
       setSelectedAffId(String(greeting.affiliationId));
+      // 수정 모드일 때 검색창에 기존 작성자 이름 세팅
+      setSearchQuery(
+        `[${greeting.affiliation.Position?.name || "일반회원"}] ${greeting.affiliation.member.name}`,
+      );
       setTitle(greeting.title || "");
       setContent(greeting.content);
       setImageUrl(greeting.imageUrl || "");
@@ -74,9 +90,10 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
       setIsActive(greeting.isActive);
       setDisplayOrder(greeting.displayOrder);
     } else {
-      // 생성 모드: 초기화
       setEditingGreeting(null);
       setSelectedAffId("");
+      setSearchQuery(""); // 🌟 검색어 초기화
+      setIsDropdownOpen(false);
       setTitle("");
       setContent("");
       setImageUrl("");
@@ -87,10 +104,9 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
     setIsModalOpen(true);
   };
 
-  // 🌟 폼 제출 (저장)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAffId) return alert("작성자를 선택해 주세요.");
+    if (!selectedAffId) return alert("작성자를 검색하여 정확히 선택해 주세요.");
 
     startTransition(async () => {
       const result = await saveGreeting(Number(selectedAffId), {
@@ -109,7 +125,6 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
     });
   };
 
-  // 🌟 삭제 처리
   const handleDelete = (id: number) => {
     if (!confirm("정말로 이 인사말을 삭제하시겠습니까?")) return;
     startTransition(async () => {
@@ -136,7 +151,7 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
         </Button>
       </div>
 
-      {/* 2. 등록된 인사말 카드 리스트 */}
+      {/* 2. 등록된 인사말 리스트 (기존과 동일) */}
       <div className="grid gap-4">
         {greetings.length === 0 ? (
           <div className="text-center py-12 bg-white border border-dashed rounded-xl text-slate-500">
@@ -148,7 +163,6 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
               key={greet.id}
               className="bg-white border rounded-xl p-5 shadow-sm flex items-center gap-6 hover:border-brand-main transition-colors"
             >
-              {/* 순위 배지 */}
               <div className="flex flex-col items-center justify-center w-12 h-12 bg-slate-100 rounded-lg shrink-0">
                 <span className="text-xs font-bold text-slate-500">순위</span>
                 <span className="text-lg font-black text-slate-800">
@@ -156,7 +170,6 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
                 </span>
               </div>
 
-              {/* 작성자 정보 */}
               <div className="w-48 shrink-0 border-r pr-4">
                 <div className="text-xs font-bold text-brand-main mb-1">
                   {greet.affiliation.Position?.name || "일반회원"}
@@ -175,7 +188,6 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
                 </div>
               </div>
 
-              {/* 요약 내용 */}
               <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-slate-800 truncate mb-1">
                   {greet.title || "(제목 없음)"}
@@ -185,7 +197,6 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
                 </p>
               </div>
 
-              {/* 액션 버튼 */}
               <div className="flex gap-2 shrink-0">
                 <Button
                   variant="outline"
@@ -208,7 +219,7 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
         )}
       </div>
 
-      {/* 3. 새 인사말 / 수정 모달 폼 */}
+      {/* 3. 모달 폼 */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -218,30 +229,77 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-            {/* 작성자 선택 (수정 시에는 변경 불가) */}
-            <div className="space-y-2">
+            {/* 🌟 작성자 선택 (검색형 드롭다운) */}
+            <div className="space-y-2 relative">
               <label className="text-sm font-bold text-slate-700">
-                작성자(임원) 선택
+                작성자(임원) 검색 및 선택
               </label>
+
               {editingGreeting ? (
+                // 수정 시에는 작성자 변경 불가
                 <div className="p-3 bg-slate-100 rounded-md border text-sm font-medium text-slate-700">
-                  [{editingGreeting.affiliation.Position?.name}]{" "}
+                  [{editingGreeting.affiliation.Position?.name || "일반회원"}]{" "}
                   {editingGreeting.affiliation.member.name} (변경 불가)
                 </div>
               ) : (
-                <select
-                  value={selectedAffId}
-                  onChange={(e) => setSelectedAffId(e.target.value)}
-                  className="w-full border-slate-300 rounded-md text-sm shadow-sm p-2.5 bg-white"
-                  required
-                >
-                  <option value="">-- 작성자를 선택하세요 --</option>
-                  {availableAffiliations.map((aff) => (
-                    <option key={aff.id} value={String(aff.id)}>
-                      [{aff.Position?.name || "일반회원"}] {aff.member.name}
-                    </option>
-                  ))}
-                </select>
+                // 생성 시 검색 컴포넌트 노출
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      placeholder="이름이나 직책을 검색하세요 (예: 김태우, 회장)"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setSelectedAffId(""); // 검색어를 수정하면 기존 선택이 풀리도록 방어
+                        setIsDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsDropdownOpen(true)}
+                      onBlur={() =>
+                        setTimeout(() => setIsDropdownOpen(false), 200)
+                      } // 클릭 이벤트를 위해 약간 딜레이
+                      className="pl-9 bg-white"
+                      required
+                    />
+                  </div>
+
+                  {/* 자동완성 드롭다운 목록 */}
+                  {isDropdownOpen && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {filteredAffiliations.length > 0 ? (
+                        filteredAffiliations.map((aff) => (
+                          <div
+                            key={aff.id}
+                            className="px-4 py-2.5 text-sm cursor-pointer hover:bg-slate-50 border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
+                            // onClick 대신 onMouseDown을 써야 onBlur보다 먼저 실행됩니다!
+                            onMouseDown={() => {
+                              setSelectedAffId(String(aff.id));
+                              setSearchQuery(
+                                `[${aff.Position?.name || "일반회원"}] ${aff.member.name}`,
+                              );
+                              setIsDropdownOpen(false);
+                            }}
+                          >
+                            <span className="font-medium text-slate-700">
+                              <span className="text-brand-main mr-1">
+                                [{aff.Position?.name || "일반회원"}]
+                              </span>
+                              {aff.member.name}
+                            </span>
+                            {selectedAffId === String(aff.id) && (
+                              <Check className="w-4 h-4 text-brand-main" />
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-6 text-sm text-slate-400 text-center flex flex-col items-center">
+                          <Search className="w-6 h-6 mb-2 opacity-20" />
+                          검색 결과가 없습니다.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -259,12 +317,12 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
                 />
               </div>
               <div className="flex flex-col justify-center pt-5">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
                   <input
                     type="checkbox"
                     checked={isActive}
                     onChange={(e) => setIsActive(e.target.checked)}
-                    className="w-4 h-4 text-red-600 rounded"
+                    className="w-4 h-4 text-brand-main rounded"
                   />
                   <span className="text-sm font-bold text-slate-700">
                     앱 화면에 노출하기
@@ -273,30 +331,37 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
               </div>
             </div>
 
-            {/* 사진 URL */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4" /> 프로필 사진 URL
+            {/* 사진 & 서명 업로드 */}
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="text-sm font-semibold flex items-center gap-2 text-slate-700">
+                  <ImageIcon className="w-4 h-4" /> 프로필 사진
                 </label>
-                <Input
-                  placeholder="https://..."
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
+                <SingleImageUploader
+                  imageUrl={imageUrl}
+                  onUploadComplete={setImageUrl}
+                  folder="greetings/profiles"
                 />
+                <p className="text-xs text-slate-400">
+                  배경이 투명한 PNG 파일이나 정방형(1:1) 비율을 권장합니다.
+                </p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold flex items-center gap-2">
-                  <PenTool className="w-4 h-4" /> 서명(직인) URL
+              <div className="space-y-3">
+                <label className="text-sm font-semibold flex items-center gap-2 text-slate-700">
+                  <PenTool className="w-4 h-4" /> 서명 또는 직인
                 </label>
-                <Input
-                  placeholder="https://..."
-                  value={signImageUrl}
-                  onChange={(e) => setSignImageUrl(e.target.value)}
+                <SingleImageUploader
+                  imageUrl={signImageUrl}
+                  onUploadComplete={setSignImageUrl}
+                  folder="greetings/signatures"
                 />
+                <p className="text-xs text-slate-400">
+                  하단에 배치될 회장/임원님의 서명이나 도장 이미지를 올려주세요.
+                </p>
               </div>
             </div>
 
+            {/* 본문 제목/내용 */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">
                 인사말 제목
@@ -316,7 +381,7 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
                 placeholder="인사말 본문을 작성해 주세요."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="min-h-[150px]"
+                className="min-h-[200px] leading-relaxed resize-none"
                 required
               />
             </div>
@@ -332,7 +397,7 @@ export function GreetingDashboard({ greetings, availableAffiliations }: Props) {
               <Button
                 type="submit"
                 disabled={isPending}
-                className="bg-slate-900 text-white"
+                className="bg-brand-main text-white hover:bg-brand-main/90"
               >
                 {isPending ? "저장 중..." : "인사말 저장하기"}
               </Button>

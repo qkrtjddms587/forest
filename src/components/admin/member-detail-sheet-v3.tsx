@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useTransition } from "react";
 import {
   Sheet,
   SheetContent,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   Edit2,
   Save,
@@ -26,7 +27,8 @@ import {
   Key,
   Camera,
   Loader2,
-  MapPin, // 🌟 MapPin 아이콘 추가 (주소용)
+  MapPin,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { updateMemberAction } from "@/actions/admin-action";
@@ -38,14 +40,19 @@ import imageCompression from "browser-image-compression";
 
 export function MemberDetailSheet({
   member,
+  isAdmin = false,
   children,
 }: {
   member: any;
+  isAdmin?: boolean;
   children: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // 권한 스위치 조작 시 즉시 통신하기 위한 트랜지션
+  const [isRoleUpdating, startRoleTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -57,11 +64,13 @@ export function MemberDetailSheet({
   const affiliation = affiliations[0];
   const { organization, generation } = affiliation;
 
+  // 권한(role)을 위한 독립적인 로컬 상태
+  const [localRole, setLocalRole] = useState(affiliation.role || "USER");
+
   const [editForm, setEditForm] = useState({
-    // 이름은 이제 상태로 관리하지 않고 member.name을 바로 씁니다.
     company: member.company || "",
     job: member.job || "",
-    address: member.address || "", // 🌟 주소 상태 추가
+    address: member.address || "",
     newPassword: "",
   });
 
@@ -91,6 +100,7 @@ export function MemberDetailSheet({
     }
   };
 
+  // 일반 정보(회사, 주소, 비밀번호 등) 저장 핸들러
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -123,7 +133,6 @@ export function MemberDetailSheet({
         }
       }
 
-      // 서버 액션 호출 (🌟 address 필드 추가됨)
       const result = await updateMemberAction(member.id, {
         ...editForm,
         image: finalImageUrl,
@@ -143,6 +152,29 @@ export function MemberDetailSheet({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // 운영진 권한 즉시 변경 핸들러
+  const handleRoleToggle = (checked: boolean) => {
+    const newRole = checked ? "MANAGER" : "USER";
+
+    startRoleTransition(async () => {
+      const result = await updateMemberAction(member.id, {
+        affiliationId: affiliation.id,
+        role: newRole,
+      });
+
+      if (result.success) {
+        setLocalRole(newRole);
+        toast.success(
+          checked
+            ? "운영진으로 임명되었습니다."
+            : "운영진 권한이 회수되었습니다.",
+        );
+      } else {
+        toast.error(result.error || "권한 변경 실패");
+      }
+    });
   };
 
   const displayImageUrl = () => {
@@ -207,8 +239,12 @@ export function MemberDetailSheet({
               )}
 
               <div className="text-center">
-                <SheetTitle className="text-2xl font-bold">
+                <SheetTitle className="text-2xl font-bold flex items-center justify-center gap-2">
                   {member.name}
+                  {/* 관리자 뱃지 (즉각 반응) */}
+                  {(localRole === "MANAGER" || localRole === "ADMIN") && (
+                    <ShieldAlert className="w-5 h-5 text-indigo-600 animate-in zoom-in" />
+                  )}
                 </SheetTitle>
                 <SheetDescription className="text-md font-medium text-brand-main mt-1">
                   {organization.name} {generation.name}
@@ -263,8 +299,38 @@ export function MemberDetailSheet({
           </SheetHeader>
 
           <div className="space-y-6 pt-4">
+            {/* 권한 설정 영역 (최고 관리자 전용, 항상 노출) */}
+            {isAdmin && (
+              <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3 relative overflow-hidden">
+                {isRoleUpdating && (
+                  <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10 backdrop-blur-[1px]">
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 text-indigo-700 font-bold">
+                  <ShieldAlert className="w-4 h-4" />
+                  운영진 권한 설정
+                </div>
+                <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-50 shadow-sm transition-all">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-semibold text-slate-800 cursor-pointer">
+                      운영진(MANAGER) 임명
+                    </Label>
+                    <p className="text-xs text-slate-500">
+                      스위치를 켜면 백오피스 접속 권한이 즉시 부여됩니다.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={localRole === "MANAGER" || localRole === "ADMIN"}
+                    disabled={localRole === "ADMIN" || isRoleUpdating}
+                    onCheckedChange={handleRoleToggle}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-4">
-              {/* 🌟 이름: 수정 불가로 변경 */}
               <div className="space-y-2">
                 <Label className="text-slate-500 text-xs">
                   이름 (수정 불가)
@@ -276,7 +342,6 @@ export function MemberDetailSheet({
                 />
               </div>
 
-              {/* 연락처: 수정 불가 */}
               <div className="space-y-2">
                 <Label className="text-slate-500 text-xs">
                   연락처 (수정 불가)
@@ -320,7 +385,6 @@ export function MemberDetailSheet({
             <Separator />
 
             <div className="grid gap-4">
-              {/* 회사 */}
               <div className="space-y-2">
                 <Label className="text-slate-500 text-xs">회사 / 소속</Label>
                 <div className="relative">
@@ -338,7 +402,6 @@ export function MemberDetailSheet({
                 </div>
               </div>
 
-              {/* 직종 */}
               <div className="space-y-2">
                 <Label className="text-slate-500 text-xs">직종</Label>
                 <div className="relative">
@@ -356,7 +419,6 @@ export function MemberDetailSheet({
                 </div>
               </div>
 
-              {/* 🌟 주소: 새로 추가됨 */}
               <div className="space-y-2">
                 <Label className="text-slate-500 text-xs">주소</Label>
                 <div className="relative">

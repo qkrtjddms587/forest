@@ -50,12 +50,15 @@ export default async function OrgBannersPage({ params }: Props) {
             관리하세요.
           </p>
         </div>
-        <div>
-          <CreateBannerDialog orgId={orgId} />
-        </div>
       </div>
 
       <Card className="border-none shadow-sm overflow-hidden bg-white">
+        <div className="flex justify-between items-center gap-3 px-5">
+          <div className="text-xl font-bold mb-2">배너 목록</div>
+          <div className="flex items-center gap-3 px-3">
+            <CreateBannerDialog orgId={orgId} />
+          </div>
+        </div>
         <CardContent className="p-0">
           <div className="overflow-auto max-h-[calc(100vh-250px)] relative [&>div]:max-h-[calc(100vh-250px)] [&>div]:overflow-auto">
             <Table>
@@ -86,7 +89,7 @@ export default async function OrgBannersPage({ params }: Props) {
                           <div className="w-24 h-12 rounded bg-slate-100 overflow-hidden shrink-0 border border-slate-200 relative">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={banner.imageUrl}
+                              src={`${process.env.NEXT_PUBLIC_S3_DOMAIN}/${process.env.NEXT_PUBLIC_S3_BUCKET}${banner.imageUrl}`}
                               alt="banner"
                               className="w-full h-full object-cover"
                             />

@@ -93,3 +93,39 @@ export async function createPostAction(data: {
     };
   }
 }
+
+export async function getMorePostsAction({
+  orgId,
+  type,
+  page,
+}: {
+  orgId: number;
+  type?: string;
+  page: number;
+}) {
+  const pageSize = 20; // 한 번에 불러올 개수
+  const whereCondition: any = { organizationId: orgId };
+
+  if (type && type !== "ALL") {
+    whereCondition.type = type;
+  }
+
+  try {
+    const posts = await prisma.post.findMany({
+      where: whereCondition,
+      orderBy: { createdAt: "desc" },
+      skip: page * pageSize,
+      take: pageSize,
+      include: {
+        author: {
+          select: { name: true, company: true },
+        },
+      },
+    });
+
+    return { success: true, data: posts };
+  } catch (error) {
+    console.error("게시글 불러오기 에러:", error);
+    return { success: false, data: [] };
+  }
+}

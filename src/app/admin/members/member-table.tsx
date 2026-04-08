@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { MemberDetailSheet } from "@/components/admin/member-detail-sheet-v2";
+import { MemberDetailSheet } from "@/components/admin/member-detail-sheet-v3";
 import { Trash2, Loader2, CheckCircle } from "lucide-react"; // 🌟 CheckCircle 아이콘 추가
 import {
   bulkDeleteMembersAction,
@@ -76,7 +76,7 @@ export function MemberTable({
 
       if (node) observer.current.observe(node);
     },
-    [isLoadingMore, hasMore, page, searchParams]
+    [isLoadingMore, hasMore, page, searchParams],
   );
 
   const handleSelectAll = (checked: boolean) => {
@@ -94,7 +94,7 @@ export function MemberTable({
     if (selectedIds.length === 0) return;
     if (
       !confirm(
-        `정말 선택한 ${selectedIds.length}명의 회원을 완전히 삭제하시겠습니까? (복구 불가)`
+        `정말 선택한 ${selectedIds.length}명의 회원을 완전히 삭제하시겠습니까? (복구 불가)`,
       )
     )
       return;
@@ -116,7 +116,7 @@ export function MemberTable({
     if (selectedIds.length === 0) return;
     if (
       !confirm(
-        `선택한 ${selectedIds.length}명의 회원을 일괄 승인 처리하시겠습니까?`
+        `선택한 ${selectedIds.length}명의 회원을 일괄 승인 처리하시겠습니까?`,
       )
     )
       return;
@@ -139,7 +139,7 @@ export function MemberTable({
               };
             }
             return m;
-          })
+          }),
         );
         alert("성공적으로 승인되었습니다.");
       } else {
@@ -192,7 +192,7 @@ export function MemberTable({
       )}
 
       {/* 테이블 영역 (이하 코드는 기존과 완벽히 동일) */}
-      <div className="rounded-md border border-slate-200 [&>div]:max-h-[calc(100vh-320px)] [&>div]:overflow-auto relative">
+      <div className="rounded-md border border-slate-200 [&>div]:max-h-[calc(100vh-500px)] [&>div]:overflow-auto relative">
         <Table>
           <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]">
             <TableRow className="hover:bg-transparent">
@@ -232,7 +232,7 @@ export function MemberTable({
                   </TableCell>
 
                   <TableCell className="font-medium">
-                    <MemberDetailSheet member={member}>
+                    <MemberDetailSheet member={member} isAdmin>
                       <div className="flex flex-col cursor-pointer group-hover:text-blue-600 transition-colors">
                         <span className="text-slate-900 font-bold group-hover:underline underline-offset-4">
                           {member.name}
@@ -295,7 +295,7 @@ export function MemberTable({
                   <TableCell className="text-xs text-slate-500">
                     {member.affiliations[0]
                       ? new Date(
-                          member.affiliations[0].createdAt
+                          member.affiliations[0].createdAt,
                         ).toLocaleDateString()
                       : "-"}
                   </TableCell>
@@ -306,7 +306,7 @@ export function MemberTable({
         </Table>
 
         {isLoadingMore && (
-          <div className="flex justify-center items-center py-6 text-slate-500">
+          <div className="flex justify-center items-center py-2 text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin mr-2" />
             <span className="text-sm font-medium">데이터를 불러오는 중...</span>
           </div>

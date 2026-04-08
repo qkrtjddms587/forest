@@ -99,7 +99,7 @@ export default async function OrgMembersPage({ params, searchParams }: Props) {
   const singleOrgArray = [organization];
 
   return (
-    <div className=" bg-slate-50/50 min-h-screen space-y-6 max-w-7xl mx-auto">
+    <div className=" bg-slate-50/50 space-y-6 max-w-7xl mx-auto">
       {/* 헤더 타이틀 */}
       <div>
         <h2 className="text-2xl font-bold flex items-center gap-2">
