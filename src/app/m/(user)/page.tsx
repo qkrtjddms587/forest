@@ -27,7 +27,7 @@ export default async function LobbyPage() {
 
   // 3. PENDING 검사를 무사히 통과했다면, 'ACTIVE(승인됨)' 상태인 소속만 추려냅니다.
   const activeAffiliations = allMyAffiliations.filter(
-    (aff) => aff.status === "ACTIVE"
+    (aff) => aff.status === "ACTIVE",
   );
 
   // 🚀 기존 핵심 로직: ACTIVE 상태인 소속이 딱 하나라면 로비를 거치지 않고 바로 입장!

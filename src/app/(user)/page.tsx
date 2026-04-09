@@ -33,9 +33,9 @@ export default async function LobbyPage() {
   );
 
   // 🚀 4. 매니저 권한이 있는 단체가 단 1개도 없다면? -> 즉시 강제 로그아웃!
-  if (managerAffiliations.length === 0) {
-    return <AutoLogout />;
-  }
+  // if (managerAffiliations.length === 0) {
+  //   return <AutoLogout />;
+  // }
 
   // 5. 매니저 권한 단체가 딱 1개라면? -> 해당 매니저 페이지로 즉시 납치!
   if (managerAffiliations.length === 1) {
