@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Search, PenSquare } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { EulaModal } from "@/components/community/eula-modal";
 
 // 🌟 탭 메뉴 정의
 const TABS = [
@@ -24,6 +25,14 @@ export default async function CommunityPage({
   const orgId = Number(id);
   const session = await auth();
   const currentUserId = Number(session?.user?.id); // 🌟 현재 로그인한 유저 ID
+
+  const currentUser = await prisma.member.findUnique({
+    where: { id: currentUserId },
+    select: { agreedEulaAt: true }, // 컬럼 조회
+  });
+
+  // 약관 동의 여부 체크
+  const hasAgreedEula = !!currentUser?.agreedEulaAt;
 
   const resolvedSearchParams = await searchParams;
   const currentType = resolvedSearchParams.type || "NOTICE";
@@ -62,6 +71,13 @@ export default async function CommunityPage({
 
   return (
     <div className="mx-auto bg-white min-h-screen relative pb-20">
+      {currentUserId && (
+        <EulaModal
+          memberId={currentUserId}
+          hasAgreed={hasAgreedEula}
+          orgId={orgId}
+        />
+      )}
       {/* 1. 상단 탭 (셀렉터) */}
       <div className="flex overflow-x-auto border-b border-gray-200 sticky top-0 bg-white z-10 scrollbar-hide">
         {TABS.map((tab) => {

@@ -57,9 +57,12 @@ model Member {
   job     String? // 직종
   address String? // 주소
 
-  affiliations    Affiliation[]
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  affiliations Affiliation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  agreedEulaAt DateTime?
+
   Post            Post[]
   Comment         Comment[]
   RefreshToken    RefreshToken[]

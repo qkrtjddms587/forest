@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
 
 interface GetMembersParams {
   q?: string;
@@ -195,7 +196,7 @@ export async function createMemberAction(formData: FormData) {
 export async function bulkCreateMembersAction(
   members: any[],
   organizationId: number,
-  generationId: number
+  generationId: number,
 ) {
   let successCount = 0;
   let failCount = 0;
@@ -212,7 +213,7 @@ export async function bulkCreateMembersAction(
       if (!name || !rawPhone || !password) {
         failCount++;
         errors.push(
-          `${index + 2}번째 행: 필수 정보 누락 (이름, 전화번호, 비밀번호)`
+          `${index + 2}번째 행: 필수 정보 누락 (이름, 전화번호, 비밀번호)`,
         );
         continue;
       }
@@ -350,5 +351,25 @@ export async function bulkApproveMembersAction(memberIds: number[]) {
   } catch (error) {
     console.error("[BULK_APPROVE_ERROR]", error);
     return { success: false, error: "일괄 승인 처리 중 오류가 발생했습니다." };
+  }
+}
+
+export async function agreeEulaAction(orgId: number) {
+  const session = await auth();
+  if (!session?.user?.id)
+    return { success: false, error: "로그인이 필요합니다." };
+
+  try {
+    await prisma.member.update({
+      where: { id: Number(session.user.id) },
+      data: { agreedEulaAt: new Date() }, // 🌟 현재 시간 기록
+    });
+
+    // 🌟 동의 완료 후 해당 단체의 커뮤니티 페이지 강제 새로고침(캐시 삭제)
+    revalidatePath(`/m/org/${orgId}/community`);
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "약관 동의 처리 중 오류가 발생했습니다." };
   }
 }
