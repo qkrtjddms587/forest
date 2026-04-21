@@ -138,7 +138,11 @@ export async function sendGroupPushAction(
           const errorCode = resp.error?.code;
           if (
             errorCode === "messaging/invalid-registration-token" ||
-            errorCode === "messaging/registration-token-not-registered"
+            errorCode === "messaging/registration-token-not-registered" ||
+            // 2. 프로젝트 SenderId가 일치하지 않음 (로그에서 발견된 건)
+            errorCode === "messaging/mismatched-credential" ||
+            // 3. 토큰 형식이 잘못됨 (APNs 원본 토큰 등 - 로그에서 발견된 건)
+            errorCode === "messaging/invalid-argument"
           ) {
             failedTokens.push(uniqueTokens[idx]);
           }

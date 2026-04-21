@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     if (!decoded || !decoded.sub) {
       return NextResponse.json(
         { message: "Invalid or expired token" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     const memberId = Number(decoded.sub);
@@ -70,12 +70,30 @@ export async function GET(req: Request) {
       orderBy: { displayOrder: "asc" }, // 정렬 순서대로
     });
 
-    return NextResponse.json({ success: true, data: banners });
+    const s3Domain = process.env.NEXT_PUBLIC_S3_DOMAIN || "";
+    const bucket = process.env.NEXT_PUBLIC_S3_BUCKET || "";
+
+    const formattedBanners = banners.map((banner) => {
+      let finalImageUrl = banner.imageUrl;
+
+      // imageUrl이 존재하고, 이미 http로 시작하는 전체 URL이 아닌 경우에만 S3 도메인을 붙임
+      if (finalImageUrl && !finalImageUrl.startsWith("http")) {
+        // 도메인 끝의 '/' 제거 + 이미지 경로 앞의 '/' 제거 후 가운데 단일 '/'로 연결
+        finalImageUrl = `${s3Domain.replace(/\/$/, "")}/${bucket}/${finalImageUrl.replace(/^\//, "")}`;
+      }
+
+      return {
+        ...banner,
+        imageUrl: finalImageUrl,
+      };
+    });
+
+    return NextResponse.json({ success: true, data: formattedBanners });
   } catch (error) {
     console.error("[BANNERS_GET_ERROR]", error);
     return NextResponse.json(
       { success: false, message: "배너를 불러오는 중 오류가 발생했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
