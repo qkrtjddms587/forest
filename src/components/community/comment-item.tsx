@@ -7,6 +7,7 @@ import {
   updateCommentAction,
   deleteCommentAction,
 } from "@/actions/comment-actions";
+import Linkify from "linkify-react";
 
 interface CommentItemProps {
   comment: {
@@ -65,7 +66,7 @@ export function CommentItem({
       comment.id,
       postId,
       orgId,
-      editContent
+      editContent,
     );
 
     if (result.success) {
@@ -169,7 +170,16 @@ export function CommentItem({
           </div>
         ) : (
           <p className="text-sm text-slate-700 whitespace-pre-wrap">
-            {comment.content}
+            <Linkify
+              options={{
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className:
+                  "text-blue-600 hover:text-blue-800 underline font-medium break-all",
+              }}
+            >
+              {comment.content}
+            </Linkify>
           </p>
         )}
       </div>

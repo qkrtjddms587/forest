@@ -12,6 +12,7 @@ import { ImageSlider } from "@/components/community/image-slider"; // 🌟 슬�
 import { DeletePostButton } from "@/components/community/delete-post-button";
 import { isContentOwner, isOrgAdmin } from "@/lib/auth/auth-utils";
 import { PostOptionsMenu } from "@/components/community/post-options-menu";
+import Linkify from "linkify-react";
 import { includes } from "zod";
 
 export default async function PostDetailPage({
@@ -182,7 +183,16 @@ export default async function PostDetailPage({
 
       {/* 3. 본문 내용 */}
       <div className="prose prose-slate max-w-none mb-10 whitespace-pre-wrap leading-relaxed text-slate-800 text-[15px] md:text-base">
-        {post.content}
+        <Linkify
+          options={{
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className:
+              "text-blue-600 hover:text-blue-800 underline font-medium break-all",
+          }}
+        >
+          {post.content}
+        </Linkify>
       </div>
 
       <div className="flex justify-center mt-10 mb-6">

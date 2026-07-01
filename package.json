@@ -23,6 +23,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "firebase-admin": "^13.7.0",
+    "linkify-react": "^4.3.3",
+    "linkifyjs": "^4.3.3",
     "lucide-react": "^0.563.0",
     "mysql2": "^3.19.1",
     "next": "16.1.6",
